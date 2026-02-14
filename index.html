@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V23 (Media & ZIP)</title>
+    <title>Transfer V24 (Memory)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
@@ -30,7 +30,6 @@
         .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; background: #0f172a; }
         .thumb-vid { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #334155; border-radius: 4px; margin-right: 10px; cursor: pointer; font-size: 1.5rem; }
 
-        /* Lightbox */
         #lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         #lbImg { max-width: 95%; max-height: 80%; object-fit: contain; }
         #lbVid { max-width: 95%; max-height: 80%; }
@@ -39,12 +38,22 @@
         
         details { margin-bottom: 15px; }
         summary { cursor: pointer; color: #94a3b8; font-weight: bold; padding: 10px; background: #0f172a; border-radius: 8px; list-style: none; }
+        
+        .settings-box { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-top:5px; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #334155; }
+        .setting-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        input:checked + .slider { background-color: #38bdf8; }
+        input:checked + .slider:before { transform: translateX(22px); background: white; width: 18px; height: 18px; bottom: 3px; left: 3px; border-radius: 50%; position: absolute; content: ""; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2 style="margin-bottom:5px;">🖼️ V23 Media Gallery</h2>
+        <h2 style="margin-bottom:5px;">💾 V24 Memory</h2>
         <div id="statusBadge" class="status-badge">Bereit</div>
     </div>
 
@@ -78,10 +87,36 @@
     <!-- TRANSFER -->
     <div id="screenTransfer" class="card hidden">
         
-        <details>
-            <summary>⚙️ Einstellungen</summary>
-            <div style="background:#1e293b; padding:15px; border-radius:8px; border:1px solid #334155; margin-top:5px;">
-                <div style="margin-bottom:10px;">📉 Kompression: <select id="compressMode" style="width:100px; padding:2px;"><option value="smart">Smart</option><option value="off">Aus</option></select></div>
+        <details id="detailsSettings">
+            <summary>⚙️ Einstellungen (Gespeichert)</summary>
+            <div class="settings-box">
+                <div class="setting-row">
+                    <span>📉 Kompression</span>
+                    <select id="compressMode" style="width:100px; padding:2px;" onchange="saveSettings()">
+                        <option value="smart">Smart</option>
+                        <option value="off">Aus</option>
+                        <option value="always">Immer</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <span>🛡️ Integritäts-Check</span>
+                    <label class="switch"><input type="checkbox" id="optIntegrity" checked onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>🔥 Burn-on-Read</span>
+                    <label class="switch"><input type="checkbox" id="optBurn" onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>👻 Stealth Mode</span>
+                    <label class="switch"><input type="checkbox" id="optStealth" onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>⏱️ Auto-Disconnect</span>
+                    <select id="autoDisc" style="width:80px; padding:2px;" onchange="saveSettings()">
+                        <option value="0">Nie</option>
+                        <option value="5">5 Min</option>
+                    </select>
+                </div>
             </div>
         </details>
 
@@ -111,20 +146,55 @@
     </div>
 
     <script>
-        const PREFIX = 'sft-v23-media-';
+        const PREFIX = 'sft-v24-mem-';
         const CHUNK_SIZE = 64 * 1024;
         
         let peer, conn, myPin, superKey;
         let incoming = {};
-        let receivedFiles = []; // Store blobs for ZIP
-        
-        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+        let receivedFiles = []; 
+        let discTimer = null;
+
+        // --- PERSISTENCE ---
+        function loadSettings() {
+            const s = localStorage.getItem('sft_settings');
+            if (s) {
+                const cfg = JSON.parse(s);
+                document.getElementById('compressMode').value = cfg.compress || 'smart';
+                document.getElementById('optIntegrity').checked = cfg.integrity !== false;
+                document.getElementById('optBurn').checked = cfg.burn || false;
+                document.getElementById('optStealth').checked = cfg.stealth || false;
+                document.getElementById('autoDisc').value = cfg.disc || '0';
+                if(cfg.name) document.getElementById('myName').value = cfg.name;
+            }
+        }
+
+        function saveSettings() {
+            const cfg = {
+                compress: document.getElementById('compressMode').value,
+                integrity: document.getElementById('optIntegrity').checked,
+                burn: document.getElementById('optBurn').checked,
+                stealth: document.getElementById('optStealth').checked,
+                disc: document.getElementById('autoDisc').value,
+                name: document.getElementById('myName').value
+            };
+            localStorage.setItem('sft_settings', JSON.stringify(cfg));
+        }
+
+        // Init Load
+        window.addEventListener('load', loadSettings);
+
+        function cleanInput(el) { 
+            el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); 
+            saveSettings(); 
+        }
+
         function setStatus(msg, type) { 
             const el = document.getElementById('statusBadge');
             el.innerText = msg;
             el.className = 'status-badge ' + (type === 'secure' ? 'secure' : '');
         }
 
+        // --- CRYPTO ---
         async function derivePinKey(pin, salt) {
             const enc = new TextEncoder();
             const mat = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
@@ -133,11 +203,17 @@
         async function generateSuperKey() {
             return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
         }
+        async function sha256(buffer) {
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
 
         // --- APP ---
         function startApp() {
             const n = document.getElementById('myName').value;
             if (n.length < 2) return alert("Name zu kurz");
+            saveSettings(); // Ensure name is saved
             peer = new Peer(PREFIX + n, { debug: 1 });
             peer.on('open', () => {
                 setStatus('Online', 'online');
@@ -168,6 +244,8 @@
 
         function setupData() {
             conn.on('data', async (d) => {
+                resetAutoDisc();
+
                 if (d.type === 'HELLO') {
                     conn.pSalt = d.salt; 
                     document.getElementById('screenConnect').classList.add('hidden');
@@ -184,9 +262,10 @@
                     } catch(e) { conn.send({ type: 'KEY_FAIL' }); }
                 }
                 if (d.type === 'KEY_ACK') showTrans();
+                if (d.type === 'KEY_FAIL') alert("PIN Falsch!");
 
                 if (d.type === 'FILE_START') {
-                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime };
+                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, hash: d.hash };
                     document.getElementById('bulkArea').classList.remove('hidden');
                     document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
                 }
@@ -220,6 +299,18 @@
             document.getElementById('screenAuth').classList.add('hidden');
             document.getElementById('screenTransfer').classList.remove('hidden');
             setStatus('🔒 Verbunden', 'secure');
+            resetAutoDisc();
+        }
+
+        function resetAutoDisc() {
+            if(discTimer) clearTimeout(discTimer);
+            const min = parseInt(document.getElementById('autoDisc').value);
+            if(min > 0) {
+                discTimer = setTimeout(() => {
+                    alert("Zeit abgelaufen.");
+                    location.reload();
+                }, min * 60 * 1000);
+            }
         }
 
         async function startBulkUpload() {
@@ -227,6 +318,10 @@
             const files = Array.from(document.getElementById('files').files);
             if (files.length === 0) return;
             const mode = document.getElementById('compressMode').value;
+            const doIntegrity = document.getElementById('optIntegrity').checked;
+            const doBurn = document.getElementById('optBurn').checked;
+            const doStealth = document.getElementById('optStealth').checked;
+
             document.getElementById('bulkArea').classList.remove('hidden');
             
             for (let i = 0; i < files.length; i++) {
@@ -234,6 +329,8 @@
                 let name = f.name;
                 document.getElementById('currentFileName').innerText = "Sende: " + name;
                 document.getElementById('pBar').style.width = '0%';
+
+                if (doStealth) name = "sec_" + Math.random().toString(36).substr(2,6);
 
                 let blob = f;
                 if (mode === 'smart' && f.size > 2 * 1024 * 1024 && f.type.startsWith('image/')) {
@@ -243,11 +340,22 @@
                         cvs.width = bmp.width; cvs.height = bmp.height;
                         cvs.getContext('2d').drawImage(bmp,0,0);
                         blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
-                        name = name.split('.')[0] + ".jpg";
+                        if (!doStealth) name = name.replace(/\.[^/.]+$/, "") + ".jpg";
+                    } catch (e) {}
+                } else if (mode === 'always' && f.type.startsWith('image/')) {
+                     try {
+                        const bmp = await createImageBitmap(f);
+                        const cvs = document.createElement('canvas');
+                        cvs.width = bmp.width; cvs.height = bmp.height;
+                        cvs.getContext('2d').drawImage(bmp,0,0);
+                        blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
                     } catch (e) {}
                 }
 
                 const raw = await blob.arrayBuffer();
+                let hash = null;
+                if(doIntegrity) hash = await sha256(raw);
+
                 const iv = crypto.getRandomValues(new Uint8Array(12));
                 const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, superKey, raw);
                 
@@ -256,7 +364,7 @@
                 packed.set(new Uint8Array(encrypted), iv.length);
 
                 const fileId = Math.random().toString(36).substr(2, 9);
-                conn.send({ type: 'FILE_START', id: fileId, name: name, size: packed.byteLength, mime: blob.type });
+                conn.send({ type: 'FILE_START', id: fileId, name: name, size: packed.byteLength, mime: blob.type, hash: hash, burn: doBurn });
 
                 let offset = 0;
                 while (offset < packed.byteLength) {
@@ -283,10 +391,17 @@
                 const iv = full.slice(0, 12);
                 const data = full.slice(12);
                 const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, superKey, data);
+                
+                // Integrity
+                let verified = '';
+                if(f.hash) {
+                    const myHash = await sha256(dec);
+                    if(myHash === f.hash) verified = '✔️'; else verified = '⚠️';
+                }
+
                 const blob = new Blob([dec], {type: f.mime});
                 const url = URL.createObjectURL(blob);
                 
-                // Add to internal list for ZIP
                 receivedFiles.push({ name: f.name, blob: blob });
                 document.getElementById('btnZip').classList.remove('hidden');
 
@@ -310,7 +425,7 @@
                     <div style="display:flex; align-items:center; flex-grow:1; cursor:pointer;" onclick="${onclickAction}">
                         ${thumbHtml}
                         <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px;">
-                            ${f.name}<br><small>${(f.total/1024).toFixed(0)} KB</small>
+                            ${f.name} ${f.burn?'🔥':''} ${verified}<br><small>${(f.total/1024).toFixed(0)} KB</small>
                         </div>
                     </div>
                     <a href="${url}" download="${f.name}" style="background:#22c55e; color:#022c22; padding:5px 10px; text-decoration:none; border-radius:4px; font-weight:bold;">⬇️</a>
@@ -336,7 +451,7 @@
                 img.classList.remove('hidden');
             } else if (type === 'vid') {
                 vid.src = url;
-                vid.muted = true; // Start muted
+                vid.muted = true; 
                 vid.autoplay = true;
                 vid.classList.remove('hidden');
                 ctrls.classList.remove('hidden');
@@ -355,7 +470,6 @@
             vid.muted = !vid.muted;
         }
 
-        // --- ZIP EXPORT ---
         async function downloadAllZip() {
             if(receivedFiles.length === 0) return;
             const zip = new JSZip();

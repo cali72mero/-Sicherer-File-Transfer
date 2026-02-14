@@ -1,337 +1,566 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sicherer File Transfer - V10 (Based on V6)</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        body { font-family: -apple-system, sans-serif; background: #eef2f5; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h2 { margin: 0 0 15px 0; color: #2d3748; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; box-sizing: border-box; text-align: center; }
-        button { width: 100%; padding: 14px; background: #4299e1; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        button.green { background: #48bb78; }
-        button.red { background: #f56565; }
-        .hidden { display: none; }
-        .log-box { background: #2d3748; color: #a0aec0; padding: 10px; font-family: monospace; font-size: 11px; height: 120px; overflow-y: scroll; border-radius: 8px; margin-top: 20px; }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-        .status-badge.online { background: #c6f6d5; color: #22543d; }
-        .status-badge.offline { background: #fed7d7; color: #822727; }
-        .recent-list { margin-top: 10px; text-align: center; }
-        .recent-item { display: inline-block; background: #e2e8f0; padding: 5px 10px; border-radius: 15px; margin: 3px; font-size: 0.85em; cursor: pointer; color: #4a5568; }
-        .file-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sicherer File Transfer - P2P</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      color: #667eea;
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 2em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.9em;
+    }
+
+    .privacy-badge {
+      background: #10b981;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 25px;
+      display: inline-block;
+      font-weight: bold;
+      font-size: 0.9em;
+      margin-bottom: 20px;
+    }
+
+    .upload-area {
+      border: 3px dashed #667eea;
+      border-radius: 10px;
+      padding: 40px;
+      text-align: center;
+      background: #f8f9ff;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .upload-area:hover {
+      background: #eef1ff;
+      border-color: #764ba2;
+    }
+
+    .upload-area.dragover {
+      background: #667eea;
+      color: white;
+      border-color: #764ba2;
+    }
+
+    .upload-icon {
+      font-size: 3em;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1em;
+      margin-bottom: 10px;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .file-list {
+      margin-top: 20px;
+    }
+
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border-left: 4px solid #667eea;
+    }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .file-size {
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    .file-btn {
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+
+    .file-btn:hover {
+      background: #5568d3;
+    }
+
+    .status {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .status.online {
+      background: #d1fae5;
+      color: #065f46;
+      border: 2px solid #10b981;
+    }
+
+    .status.connecting {
+      background: #fef3c7;
+      color: #92400e;
+      border: 2px solid #f59e0b;
+    }
+
+    .status.offline {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 2px solid #ef4444;
+    }
+
+    .peer-id-box {
+      background: #f3f4f6;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      word-break: break-all;
+      font-family: monospace;
+      border: 2px solid #e5e7eb;
+    }
+
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 20px;
+    }
+
+    .info-box ul {
+      margin-left: 20px;
+      margin-top: 10px;
+    }
+
+    .info-box li {
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 1.3em;
+      color: #667eea;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-
+  <div class="container">
     <!-- Header -->
-    <div style="text-align:center; margin-bottom:20px;">
-        <h2>🛡️ Transfer V10 (Stable)</h2>
-        <div id="connectionStatus" class="status-badge offline">Offline</div>
+    <div class="card">
+      <div style="text-align: center;">
+        <span class="privacy-badge">🔒 100% PRIVAT - KEINE SERVER</span>
+      </div>
+      <h1>📡 Sicherer File Transfer</h1>
+      <p class="subtitle">Peer-to-Peer • Keine Speicherung • Automatisches Löschen</p>
+      
+      <div id="statusBox" class="status offline">
+        Initialisierung...
+      </div>
     </div>
 
-    <!-- Screen 1: Setup -->
-    <div id="screenSetup" class="card">
-        <h2>1. Einrichtung</h2>
-        <p style="color:#718096; font-size:0.9em; margin-bottom:15px;">Wähle einen Namen für dieses Gerät.</p>
-        <input type="text" id="myName" placeholder="z.B. handy1" onkeyup="cleanInput(this)">
-        <button onclick="startMyPeer()">🚀 Online gehen</button>
-    </div>
-
-    <!-- Screen 2: Dashboard -->
-    <div id="screenDashboard" class="card hidden">
-        <div style="text-align:center; margin-bottom:20px;">
-            <span style="color:#718096">Dein Name:</span><br>
-            <strong id="displayName" style="font-size:1.4em; color:#4299e1;">...</strong>
+    <!-- Connection Section -->
+    <div class="grid">
+      <!-- Send -->
+      <div class="card">
+        <div class="section-title">📤 Dateien senden</div>
+        <div id="peerIdSection" class="hidden">
+          <p style="margin-bottom: 10px; color: #666;">Deine Peer-ID:</p>
+          <div class="peer-id-box" id="peerIdDisplay"></div>
+          <button class="btn btn-primary" onclick="copyPeerId()">📋 Link kopieren</button>
+          <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Teile diesen Link mit dem Empfänger</p>
         </div>
+      </div>
 
-        <div style="border-top: 2px dashed #e2e8f0; margin: 20px 0;"></div>
-
-        <h3>Verbinden</h3>
-        <p style="color:#718096; font-size:0.9em;">Name des Partners:</p>
-        <input type="text" id="partnerName" placeholder="Name des Partners" onkeyup="cleanInput(this)">
-        <button class="green" onclick="connectToPartner()" id="btnConnect">🔗 Verbinden</button>
-        
-        <!-- Recent Devices List -->
-        <div id="recentList" class="recent-list hidden"></div>
+      <!-- Receive -->
+      <div class="card">
+        <div class="section-title">📥 Dateien empfangen</div>
+        <p style="margin-bottom: 10px; color: #666;">Peer-ID vom Sender:</p>
+        <input type="text" id="targetPeerInput" placeholder="Peer-ID hier eingeben...">
+        <button class="btn btn-primary" onclick="connectToPeer()">🔗 Verbinden</button>
+      </div>
     </div>
 
-    <!-- Screen 3: PIN Auth -->
-    <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center">🔒 Sicherheit</h2>
-        
-        <!-- Receiver View -->
-        <div id="viewReceiver" class="hidden">
-            <p style="text-align:center">Anfrage von <strong id="incomingPeerName">...</strong></p>
-            <p style="text-align:center; font-size:0.9em;">Zeige ihm diesen Code:</p>
-            <div id="myPinDisplay" style="font-size: 42px; letter-spacing: 8px; font-weight: 800; text-align: center; background: #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0;">----</div>
-        </div>
-
-        <!-- Sender View -->
-        <div id="viewSender" class="hidden">
-            <p style="text-align:center">Verbunden! Warte auf Code...</p>
-            <p style="text-align:center; font-size:0.9em;">Gib den Code vom Partner ein:</p>
-            <input type="tel" id="inputPin" placeholder="0000" maxlength="4" style="font-size:32px; letter-spacing:5px;">
-            <button class="green" onclick="submitPin()">Bestätigen</button>
-        </div>
-
-        <button class="red" onclick="location.reload()" style="margin-top:20px;">Abbrechen</button>
+    <!-- Upload Section -->
+    <div class="card">
+      <div class="section-title">📁 Dateien hochladen</div>
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📤</div>
+        <div><strong>Klicke hier oder ziehe Dateien</strong></div>
+        <div style="color: #666; margin-top: 10px;">Keine Größenbeschränkung • Mehrere Dateien möglich</div>
+      </div>
+      <input type="file" id="fileInput" multiple style="display: none;">
+      
+      <div id="fileList" class="file-list hidden"></div>
+      
+      <button id="sendBtn" class="btn btn-success hidden" onclick="sendFiles()">
+        🚀 DATEIEN SENDEN
+      </button>
+      
+      <button class="btn btn-danger hidden" id="clearBtn" onclick="clearFiles()">
+        🗑️ Alle Dateien löschen
+      </button>
     </div>
 
-    <!-- Screen 4: Transfer -->
-    <div id="screenTransfer" class="card hidden">
-        <h2 style="text-align:center; color:#48bb78;">✅ Bereit</h2>
-        
-        <div style="background:#f0fff4; padding:20px; border:2px dashed #48bb78; border-radius:10px; text-align:center; margin-bottom:20px;">
-            <p style="margin-bottom:10px;">Dateien senden:</p>
-            <input type="file" id="fileInput" multiple>
-            <button class="green" onclick="uploadFiles()">Senden</button>
-        </div>
-
-        <h3>Empfangen:</h3>
-        <div id="fileList" style="margin-top:10px;"></div>
-        <button class="red" onclick="location.reload()" style="margin-top:30px;">Trennen</button>
+    <!-- Info Section -->
+    <div class="card">
+      <div class="info-box">
+        <strong>ℹ️ So funktioniert's:</strong>
+        <ul>
+          <li><strong>Sender:</strong> Link kopieren und an Empfänger senden</li>
+          <li><strong>Empfänger:</strong> Link öffnen oder Peer-ID eingeben und verbinden</li>
+          <li><strong>Sender:</strong> Dateien hochladen und "DATEIEN SENDEN" klicken</li>
+          <li><strong>Empfänger:</strong> Dateien werden automatisch angezeigt und können heruntergeladen werden</li>
+          <li><strong>⚠️ Wichtig:</strong> Beide müssen gleichzeitig online sein!</li>
+          <li><strong>🔒 Datenschutz:</strong> Beim Verlassen der Seite werden alle Daten automatisch gelöscht</li>
+        </ul>
+      </div>
     </div>
+  </div>
 
-    <div id="debug" class="log-box">Log startet...</div>
+  <script>
+    let peer = null;
+    let conn = null;
+    let filesData = [];
+    let myPeerId = '';
 
-    <script>
-        // --- Configuration V10 (Based on V6 provided by user) ---
-        const PREFIX = 'sft-v10-final-';
+    // Initialize
+    function init() {
+      peer = new Peer();
+      
+      peer.on('open', function(id) {
+        myPeerId = id;
+        document.getElementById('peerIdDisplay').textContent = id;
+        document.getElementById('peerIdSection').classList.remove('hidden');
+        updateStatus('online', '✅ System bereit - Du kannst Dateien senden oder empfangen');
         
-        const ICE_SERVERS = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' }
-        ];
-
-        let peer, conn, myPin, myId;
-        let receivedHistory = []; // Prevent overwriting
-        let recents = JSON.parse(localStorage.getItem('sft_recents') || '[]');
-
-        // --- Utils ---
-        function log(msg) {
-            const d = document.getElementById('debug');
-            const time = new Date().toLocaleTimeString().split(' ')[0];
-            d.innerHTML = `<div>[${time}] ${msg}</div>` + d.innerHTML;
+        // Check if URL has peer ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const connectId = urlParams.get('peer');
+        if (connectId) {
+          document.getElementById('targetPeerInput').value = connectId;
+          setTimeout(() => connectToPeer(), 500);
         }
-        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
-        function setStatus(cls, msg) {
-            const el = document.getElementById('connectionStatus');
-            el.className = 'status-badge ' + cls;
-            el.innerText = msg;
+      });
+
+      peer.on('connection', function(c) {
+        conn = c;
+        setupConnection();
+        updateStatus('online', '🔗 Verbunden! Warte auf Dateien...');
+      });
+
+      peer.on('error', function(err) {
+        console.error('Peer error:', err);
+        updateStatus('offline', '❌ Fehler: ' + err.type);
+      });
+
+      // File input
+      document.getElementById('fileInput').addEventListener('change', handleFiles);
+      
+      // Drag and drop
+      const uploadArea = document.getElementById('uploadArea');
+      uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+      
+      uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+      });
+      
+      uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        handleFiles({ target: { files: files } });
+      });
+
+      // Auto-delete on page unload
+      window.addEventListener('beforeunload', function(e) {
+        if (filesData.length > 0) {
+          e.preventDefault();
+          e.returnValue = 'Du hast ungesendete Dateien. Wirklich verlassen? Alle Daten werden gelöscht.';
         }
+        cleanup();
+      });
+    }
 
-        // --- Recents Logic ---
-        function updateRecents(name) {
-            if (!recents.includes(name)) {
-                recents.unshift(name);
-                if (recents.length > 5) recents.pop();
-                localStorage.setItem('sft_recents', JSON.stringify(recents));
-            }
-            renderRecents();
+    function updateStatus(type, message) {
+      const statusBox = document.getElementById('statusBox');
+      statusBox.className = 'status ' + type;
+      statusBox.textContent = message;
+    }
+
+    function connectToPeer() {
+      const targetId = document.getElementById('targetPeerInput').value.trim();
+      if (!targetId) {
+        alert('Bitte Peer-ID eingeben!');
+        return;
+      }
+
+      updateStatus('connecting', '⏳ Verbinde...');
+      conn = peer.connect(targetId);
+      setupConnection();
+    }
+
+    function setupConnection() {
+      conn.on('open', function() {
+        updateStatus('online', '🔗 Verbunden! Bereit zum Senden/Empfangen');
+      });
+
+      conn.on('data', function(data) {
+        if (data.type === 'files') {
+          filesData = data.files;
+          displayFiles();
+          updateStatus('online', '📥 ' + data.files.length + ' Dateien empfangen!');
         }
-        
-        function renderRecents() {
-            const container = document.getElementById('recentList');
-            if (recents.length > 0) {
-                container.innerHTML = '<p style="font-size:0.8em; color:#666; margin-bottom:5px;">Zuletzt:</p>';
-                container.classList.remove('hidden');
-                recents.forEach(r => {
-                    const el = document.createElement('span');
-                    el.className = 'recent-item';
-                    el.innerText = r;
-                    el.onclick = () => { document.getElementById('partnerName').value = r; connectToPartner(); };
-                    container.appendChild(el);
-                });
-            }
-        }
+      });
 
-        // --- 1. Start Peer ---
-        function startMyPeer() {
-            const name = document.getElementById('myName').value;
-            if (name.length < 2) return alert("Name zu kurz");
-            
-            myId = name;
-            const fullId = PREFIX + name;
-            
-            log('Verbinde mit Server...');
-            peer = new Peer(fullId, {
-                debug: 1,
-                config: { iceServers: ICE_SERVERS }
-            });
+      conn.on('close', function() {
+        updateStatus('offline', '⚠️ Verbindung getrennt');
+        conn = null;
+      });
 
-            peer.on('open', (id) => {
-                log('✅ Online als: ' + name);
-                setStatus('online', 'Online');
-                document.getElementById('screenSetup').classList.add('hidden');
-                document.getElementById('screenDashboard').classList.remove('hidden');
-                document.getElementById('displayName').innerText = name;
-                renderRecents();
-            });
+      conn.on('error', function(err) {
+        console.error('Connection error:', err);
+        updateStatus('offline', '❌ Verbindungsfehler');
+      });
+    }
 
-            peer.on('error', (err) => {
-                log('❌ ' + err.type);
-                if (err.type === 'unavailable-id') alert("Name belegt! Wähle einen anderen.");
-                else alert("Fehler: " + err.type);
-            });
+    function handleFiles(e) {
+      const files = e.target.files;
+      if (!files.length) return;
 
-            // RECEIVER LOGIC
-            peer.on('connection', (c) => {
-                log('⚡ Eingehende Verbindung...');
-                document.getElementById('screenDashboard').classList.add('hidden');
-                
-                c.on('open', () => {
-                    log('✅ Kanal offen! Sende Handshake...');
-                    myPin = Math.floor(1000 + Math.random() * 9000).toString();
-                    c.send({ type: 'HANDSHAKE_HELLO' });
-                    
-                    document.getElementById('screenAuth').classList.remove('hidden');
-                    document.getElementById('viewReceiver').classList.remove('hidden');
-                    document.getElementById('myPinDisplay').innerText = myPin;
-                    document.getElementById('incomingPeerName').innerText = c.peer.replace(PREFIX, '');
-                    
-                    conn = c;
-                    setupDataHandler();
-                });
-            });
-        }
+      updateStatus('connecting', '📂 Lade Dateien...');
+      let processed = 0;
 
-        // --- 2. Connect (Sender) ---
-        function connectToPartner() {
-            const partner = document.getElementById('partnerName').value;
-            if (!partner) return;
-            
-            const fullPartner = PREFIX + partner;
-            log('⏳ Suche ' + partner + '...');
-            
-            const btn = document.getElementById('btnConnect');
-            btn.disabled = true;
-            btn.innerText = "Verbinde...";
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          filesData.push({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: e.target.result
+          });
+          
+          processed++;
+          if (processed === files.length) {
+            displayFiles();
+            updateStatus('online', '✅ ' + files.length + ' Datei(en) geladen');
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
 
-            const c = peer.connect(fullPartner, {
-                reliable: true,
-                serialization: 'binary'
-            });
+    function displayFiles() {
+      const fileList = document.getElementById('fileList');
+      const sendBtn = document.getElementById('sendBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      
+      if (filesData.length === 0) {
+        fileList.classList.add('hidden');
+        sendBtn.classList.add('hidden');
+        clearBtn.classList.add('hidden');
+        return;
+      }
 
-            c.on('open', () => {
-                log('✅ Kanal offen! Warte auf Antwort...');
-                conn = c;
-                setupDataHandler();
-            });
-            
-            c.on('error', (err) => {
-                alert("Verbindung fehlgeschlagen. Ist der Partner online?");
-                location.reload();
-            });
-            
-            // Timeout Watchdog
-            setTimeout(() => {
-                if (!conn || !conn.open) {
-                    alert("Zeitüberschreitung. Firewall blockiert eventuell.");
-                    location.reload();
-                }
-            }, 8000);
-        }
+      fileList.classList.remove('hidden');
+      sendBtn.classList.remove('hidden');
+      clearBtn.classList.remove('hidden');
 
-        // --- 3. Protocol ---
-        function setupDataHandler() {
-            conn.on('data', (data) => {
-                // Handshake
-                if (data.type === 'HANDSHAKE_HELLO') {
-                    document.getElementById('screenDashboard').classList.add('hidden');
-                    document.getElementById('screenAuth').classList.remove('hidden');
-                    document.getElementById('viewSender').classList.remove('hidden');
-                }
+      fileList.innerHTML = filesData.map((file, index) => `
+        <div class="file-item">
+          <div class="file-info">
+            <div class="file-name">📄 ${file.name}</div>
+            <div class="file-size">${formatFileSize(file.size)}</div>
+          </div>
+          <button class="file-btn" onclick="downloadFile(${index})">⬇️ Download</button>
+        </div>
+      `).join('');
+    }
 
-                // Auth
-                if (data.type === 'AUTH_PIN') {
-                    if (data.pin === myPin) {
-                        conn.send({ type: 'AUTH_OK' });
-                        showTransfer();
-                    } else {
-                        conn.send({ type: 'AUTH_FAIL' });
-                        alert("Falscher Code!");
-                        location.reload();
-                    }
-                }
+    function sendFiles() {
+      if (!conn) {
+        alert('Keine Verbindung! Bitte erst mit einem Peer verbinden.');
+        return;
+      }
 
-                if (data.type === 'AUTH_OK') {
-                    // Success! Save recent
-                    const partner = document.getElementById('partnerName').value;
-                    if(partner) updateRecents(partner);
-                    showTransfer();
-                }
-                if (data.type === 'AUTH_FAIL') { alert("Falscher Code!"); location.reload(); }
+      if (filesData.length === 0) {
+        alert('Keine Dateien zum Senden!');
+        return;
+      }
 
-                // File
-                if (data.type === 'FILE_CHUNK') receiveFile(data);
-            });
+      conn.send({
+        type: 'files',
+        files: filesData
+      });
 
-            conn.on('close', () => { alert("Verbindung getrennt!"); location.reload(); });
-        }
+      updateStatus('online', '✅ ' + filesData.length + ' Datei(en) gesendet!');
+    }
 
-        function submitPin() {
-            const pin = document.getElementById('inputPin').value;
-            conn.send({ type: 'AUTH_PIN', pin: pin });
-        }
+    function downloadFile(index) {
+      const file = filesData[index];
+      const a = document.createElement('a');
+      a.href = file.data;
+      a.download = file.name;
+      a.click();
+    }
 
-        function showTransfer() {
-            document.getElementById('screenAuth').classList.add('hidden');
-            document.getElementById('screenTransfer').classList.remove('hidden');
-        }
+    function clearFiles() {
+      if (confirm('Wirklich alle Dateien löschen?')) {
+        filesData = [];
+        displayFiles();
+        updateStatus('online', '🗑️ Alle Dateien gelöscht');
+      }
+    }
 
-        // --- 4. File Transfer (With Rename Logic) ---
-        function uploadFiles() {
-            const files = document.getElementById('fileInput').files;
-            Array.from(files).forEach(f => {
-                log('Sende: ' + f.name);
-                conn.send({
-                    type: 'FILE_CHUNK',
-                    name: f.name,
-                    mime: f.type,
-                    blob: f,
-                    size: f.size
-                });
-            });
-            alert("Dateien gesendet!");
-        }
+    function copyPeerId() {
+      const url = window.location.origin + window.location.pathname + '?peer=' + myPeerId;
+      navigator.clipboard.writeText(url).then(function() {
+        alert('✅ Link kopiert! Teile ihn mit dem Empfänger.');
+      }).catch(function() {
+        alert('Link: ' + url);
+      });
+    }
 
-        function receiveFile(data) {
-            let finalName = data.name;
-            let counter = 1;
-            
-            // Rename logic: Check if file exists in session history
-            while (receivedHistory.includes(finalName)) {
-                let parts = data.name.split('.');
-                let ext = parts.pop();
-                let base = parts.join('.');
-                finalName = `${base} (${counter}).${ext}`;
-                counter++;
-            }
-            receivedHistory.push(finalName);
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
 
-            log('Erhalten: ' + finalName);
-            const blob = new Blob([data.blob], { type: data.mime });
-            const url = URL.createObjectURL(blob);
-            
-            const div = document.createElement('div');
-            div.className = 'file-item';
-            div.innerHTML = `
-                <div>
-                    <strong>${finalName}</strong> <br>
-                    <small>${(data.size/1024/1024).toFixed(2)} MB</small>
-                </div>
-                <a href="${url}" download="${finalName}" 
-                   style="padding:5px 15px; background:#48bb78; color:white; text-decoration:none; border-radius:4px;">
-                   💾 Speichern
-                </a>
-            `;
-            document.getElementById('fileList').prepend(div);
-        }
-    </script>
+    function cleanup() {
+      filesData = [];
+      if (conn) conn.close();
+      if (peer) peer.destroy();
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+
+    // Start
+    init();
+  </script>
 </body>
 </html>

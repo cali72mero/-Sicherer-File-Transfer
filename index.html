@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V25 (Ultimate)</title>
+    <title>Transfer V26 (Multi-Ghost)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
             --bg: #0f172a; --card: #1e293b; --text: #cbd5e1; --accent: #38bdf8; --border: #334155;
-            --btn-blue: #0ea5e9; --btn-green: #22c55e; --font: -apple-system, sans-serif;
+            --btn-blue: #0ea5e9; --btn-green: #22c55e; --btn-red: #ef4444; --font: -apple-system, sans-serif;
         }
         [data-theme="light"] {
             --bg: #f1f5f9; --card: #ffffff; --text: #334155; --accent: #0284c7; --border: #e2e8f0;
@@ -17,7 +17,7 @@
         }
         [data-theme="matrix"] {
             --bg: #000000; --card: #111111; --text: #00ff41; --accent: #00ff41; --border: #003b00;
-            --btn-blue: #003b00; --btn-green: #008f11; --font: 'Courier New', monospace;
+            --btn-blue: #003b00; --btn-green: #008f11; --btn-red: #8f0000; --font: 'Courier New', monospace;
         }
 
         body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 15px; max-width: 600px; margin: 0 auto; transition: 0.3s; }
@@ -29,28 +29,33 @@
         
         .btn-blue { background: var(--btn-blue); }
         .btn-green { background: var(--btn-green); }
-        .btn-icon { width: auto; padding: 8px 15px; font-size: 1rem; margin: 0 5px; }
-
+        .btn-red { background: var(--btn-red); }
+        
         .hidden { display: none !important; }
         
-        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; background: var(--border); margin-bottom: 15px; display: inline-block; }
-        .secure { background: var(--btn-green); color: #000; }
-
         /* Tabs */
         .tabs { display: flex; margin-bottom: 15px; gap: 10px; }
         .tab { flex: 1; padding: 10px; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; opacity: 0.7; }
         .tab.active { opacity: 1; border-color: var(--accent); color: var(--accent); font-weight: bold; }
 
+        /* Device List */
+        .device-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: 10px; border-radius: 6px; margin-bottom: 5px; border: 1px solid var(--border); }
+        .badge-lan { background: #22c55e; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .badge-wan { background: #f59e0b; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+
         /* Chat */
         .chat-box { height: 300px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
-        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; word-break: break-word; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; word-break: break-word; font-size: 0.95rem; }
         .msg.me { align-self: flex-end; background: var(--btn-blue); color: white; }
         .msg.other { align-self: flex-start; background: var(--card); border: 1px solid var(--border); }
+        .msg-meta { font-size: 0.7rem; opacity: 0.7; margin-bottom: 2px; }
 
         /* File List */
         .file-list { max-height: 400px; overflow-y: auto; }
         .file-item { padding: 10px; background: var(--card); margin-top: 5px; border-radius: 6px; display: flex; align-items: center; border-left: 3px solid var(--accent); font-size: 0.9rem; border: 1px solid var(--border); }
         .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; background: var(--bg); }
+        
+        .pin-display { font-size: 2.5rem; letter-spacing: 5px; font-family: monospace; text-align: center; background: var(--bg); padding: 15px; border-radius: 10px; margin: 15px 0; color: var(--accent); border: 2px dashed var(--border); }
         
         /* Settings */
         .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -64,15 +69,13 @@
 <body>
 
     <div style="text-align:center;">
-        <h2 style="margin-bottom:5px;">🌐 Transfer V25</h2>
-        <div id="statusBadge" class="status-badge">Bereit</div>
+        <h2 style="margin-bottom:5px;">🌍 Transfer V26 Multi</h2>
     </div>
 
     <!-- SETUP -->
     <div id="screenSetup" class="card">
         <h2>Identität</h2>
         <input type="text" id="myName" placeholder="Gerätename" onkeyup="cleanInput(this)">
-        
         <div class="setting-row">
             <span>🎨 Design</span>
             <select id="themeSel" onchange="applyTheme()" style="width:100px; padding:5px;">
@@ -81,35 +84,42 @@
                 <option value="matrix">Hacker</option>
             </select>
         </div>
-
         <button class="btn-blue" onclick="startApp()">Starten</button>
     </div>
 
-    <!-- CONNECT -->
+    <!-- AUTH/CONNECT (Hidden by default until needed) -->
     <div id="screenConnect" class="card hidden">
-        <p style="text-align:center;">Ich bin: <strong id="dispName" style="color:var(--accent)">...</strong></p>
-        <button class="btn-blue" onclick="shareLink()" style="margin-bottom:15px; font-size:0.9rem;">🔗 Link kopieren</button>
-        <hr style="border-color:var(--border); margin:15px 0;">
+        <h3 style="margin-top:0;">Geräte hinzufügen</h3>
         <input type="text" id="partnerName" placeholder="Partner Name" onkeyup="cleanInput(this)">
-        <button class="btn-green" onclick="connect()">Verbinden</button>
-    </div>
-
-    <!-- AUTH -->
-    <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center;">🔑 Auth</h2>
-        <div id="authReceiver" class="hidden">
-            <div style="font-size:2.5rem; letter-spacing:5px; text-align:center; color:var(--accent); font-family:monospace; margin:20px;">
-                <span id="pinDisplayVal">----</span>
+        <div style="display:flex; gap:10px;">
+            <button class="btn-green" onclick="connectToPeer()">➕ Hinzufügen</button>
+            <button class="btn-blue" onclick="shareLink()">🔗 Link</button>
+        </div>
+        
+        <div id="authArea" class="hidden" style="margin-top:15px; background:var(--bg); padding:10px; border-radius:8px;">
+            <div id="authReceiver" class="hidden">
+                <p style="text-align:center; margin:0;">PIN am Partner eingeben:</p>
+                <div class="pin-display" style="font-size:1.5rem; padding:10px;"><span id="pinDisplayVal">----</span></div>
+            </div>
+            <div id="authSender" class="hidden">
+                <input type="tel" id="inputPin" placeholder="PIN eingeben" style="font-size:1.5rem; letter-spacing:5px; text-align:center;">
+                <button class="btn-green" onclick="submitPin()">Bestätigen</button>
             </div>
         </div>
-        <div id="authSender" class="hidden">
-            <input type="tel" id="inputPin" placeholder="PIN" style="font-size:2rem; letter-spacing:5px; text-align:center;">
-            <button class="btn-green" onclick="submitPin()">OK</button>
-        </div>
     </div>
 
-    <!-- MAIN APP AREA (Tabs) -->
+    <!-- MAIN APP AREA -->
     <div id="screenMain" class="hidden">
+        
+        <!-- DEVICE LIST -->
+        <div class="card" style="padding:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <small>Verbundene Geräte:</small>
+                <small style="color:var(--accent); cursor:pointer;" onclick="document.getElementById('screenConnect').classList.remove('hidden')">➕ Neu</small>
+            </div>
+            <div id="deviceList" style="margin-top:5px;"></div>
+        </div>
+
         <div class="tabs">
             <div class="tab active" onclick="switchTab('files')">📂 Dateien</div>
             <div class="tab" onclick="switchTab('chat')">💬 Chat</div>
@@ -120,27 +130,30 @@
         <div id="tab-files">
             <div class="card">
                 <div style="text-align:center; padding:20px; border:2px dashed var(--border); border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
-                    <span style="font-size:1.5rem;">📂</span> <strong>Dateien wählen</strong>
+                    <span style="font-size:1.5rem;">📂</span> <strong>Dateien senden</strong><br>
+                    <small>an ALLE Geräte</small>
                 </div>
                 <input type="file" id="files" multiple style="display:none;" onchange="startBulkUpload()">
                 
                 <div id="bulkArea" class="hidden" style="margin-top:10px;">
-                    <div style="font-size:0.8rem; color:var(--text);" id="currentFileName">Sende...</div>
+                    <div style="font-size:0.8rem;" id="currentFileName">Sende...</div>
                     <div style="background:var(--border); height:6px; border-radius:3px; margin-top:5px; overflow:hidden;">
                         <div id="pBar" style="background:var(--btn-green); height:100%; width:0%;"></div>
                     </div>
                 </div>
             </div>
-            
             <button class="btn-blue hidden" id="btnZip" onclick="downloadAllZip()" style="background:#f59e0b; color:black; margin-bottom:10px;">📦 Alles als ZIP</button>
             <div id="fileList" class="file-list"></div>
         </div>
 
         <!-- CHAT TAB -->
         <div id="tab-chat" class="hidden">
+            <div style="text-align:center; font-size:0.7rem; opacity:0.6; margin-bottom:5px;">
+                👻 Ghost-Mode: Nachrichten verschwinden beim Trennen.
+            </div>
             <div class="chat-box" id="chatBox"></div>
             <div style="display:flex; gap:10px;">
-                <input type="text" id="chatInput" placeholder="Nachricht..." style="margin:0;">
+                <input type="text" id="chatInput" placeholder="Nachricht an alle..." style="margin:0;">
                 <button class="btn-blue" onclick="sendChat()" style="width:auto; margin:0;">➤</button>
             </div>
         </div>
@@ -148,6 +161,7 @@
         <!-- SETTINGS TAB -->
         <div id="tab-settings" class="hidden">
             <div class="card">
+                <h3>Sicherheit & Netz</h3>
                 <div class="setting-row">
                     <span>📉 Kompression</span>
                     <select id="compressMode" style="width:100px;" onchange="saveSettings()">
@@ -172,7 +186,13 @@
                     <span>👻 Stealth</span>
                     <label class="switch"><input type="checkbox" id="optStealth" onchange="saveSettings()"><span class="slider"></span></label>
                 </div>
-                <button class="btn-blue" style="background:#ef4444;" onclick="location.reload()">Verbindung Trennen</button>
+                
+                <hr style="border-color:var(--border)">
+                
+                <button class="btn-red" onclick="rotateSecurity()">🔒 Neuer Schlüssel (Reset)</button>
+                <p style="font-size:0.75rem; color:var(--text); opacity:0.7; margin-top:5px;">
+                    Trennt ALLE Verbindungen und löscht alle lokalen Schlüssel. Chat-Verlauf wird bei allen gelöscht.
+                </p>
             </div>
         </div>
     </div>
@@ -184,17 +204,19 @@
     </div>
 
     <script>
-        const PREFIX = 'sft-v25-ult-';
+        const PREFIX = 'sft-v26-multi-';
         const CHUNK_SIZE = 64 * 1024;
-        let peer, conn, myPin, superKey;
+        
+        // Multi-User State
+        let peer;
+        let connections = {}; // Map: peerId -> { conn, key, salt, pendingPin, type }
+        let myPin;
         let incoming = {};
         let receivedFiles = []; 
+        let pendingAuthPeer = null; // The peer we are currently trying to authenticate with PIN
 
         // --- THEME & SETTINGS ---
-        function applyTheme() {
-            document.documentElement.setAttribute('data-theme', document.getElementById('themeSel').value);
-            saveSettings();
-        }
+        function applyTheme() { document.documentElement.setAttribute('data-theme', document.getElementById('themeSel').value); saveSettings(); }
         function saveSettings() {
             const cfg = {
                 theme: document.getElementById('themeSel').value,
@@ -205,10 +227,10 @@
                 stealth: document.getElementById('optStealth').checked,
                 name: document.getElementById('myName').value
             };
-            localStorage.setItem('sft_v25', JSON.stringify(cfg));
+            localStorage.setItem('sft_v26', JSON.stringify(cfg));
         }
         function loadSettings() {
-            const s = localStorage.getItem('sft_v25');
+            const s = localStorage.getItem('sft_v26');
             if (s) {
                 const cfg = JSON.parse(s);
                 if(cfg.theme) { document.getElementById('themeSel').value = cfg.theme; applyTheme(); }
@@ -219,38 +241,19 @@
                 document.getElementById('optBurn').checked = cfg.burn || false;
                 document.getElementById('optStealth').checked = cfg.stealth || false;
             }
-            // URL Param Check
             const urlParams = new URLSearchParams(window.location.search);
             if(urlParams.has('connect')) document.getElementById('partnerName').value = urlParams.get('connect');
         }
         window.addEventListener('load', loadSettings);
 
-        function playSound() {
-            if(!document.getElementById('optSound').checked) return;
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            const g = ctx.createGain();
-            osc.connect(g); g.connect(ctx.destination);
-            osc.frequency.value = 800; osc.type = 'sine';
-            g.gain.value = 0.1; osc.start(); 
-            g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
-            osc.stop(ctx.currentTime + 0.1);
-        }
-
+        function playSound() { if(document.getElementById('optSound').checked) { const a=new AudioContext(); const o=a.createOscillator(); const g=a.createGain(); o.connect(g); g.connect(a.destination); o.frequency.value=800; g.gain.value=0.1; o.start(); o.stop(a.currentTime+0.1); } }
+        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); saveSettings(); }
+        
         function switchTab(t) {
-            document.getElementById('tab-files').classList.add('hidden');
-            document.getElementById('tab-chat').classList.add('hidden');
-            document.getElementById('tab-settings').classList.add('hidden');
+            document.querySelectorAll('[id^="tab-"]').forEach(e => e.classList.add('hidden'));
             document.getElementById('tab-'+t).classList.remove('hidden');
             document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
             event.target.classList.add('active');
-        }
-
-        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); saveSettings(); }
-        function setStatus(msg, type) { 
-            const el = document.getElementById('statusBadge');
-            el.innerText = msg;
-            el.className = 'status-badge ' + (type === 'secure' ? 'secure' : '');
         }
 
         // --- CRYPTO ---
@@ -260,198 +263,297 @@
             return crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode(salt), iterations: 100000, hash: "SHA-256" }, mat, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
         }
         async function generateSuperKey() { return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]); }
-        async function sha256(buf) {
-            const h = await crypto.subtle.digest('SHA-256', buf);
-            return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
-        }
+        async function sha256(buf) { const h = await crypto.subtle.digest('SHA-256', buf); return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join(''); }
 
-        // --- APP ---
+        // --- APP FLOW ---
         function startApp() {
             const n = document.getElementById('myName').value;
             if (n.length < 2) return alert("Name zu kurz");
             saveSettings();
             peer = new Peer(PREFIX + n, { debug: 1 });
             peer.on('open', () => {
-                setStatus('Online', 'online');
                 document.getElementById('screenSetup').classList.add('hidden');
+                document.getElementById('screenMain').classList.remove('hidden');
                 document.getElementById('screenConnect').classList.remove('hidden');
-                document.getElementById('dispName').innerText = n;
             });
-            peer.on('connection', (c) => {
-                conn = c;
-                c.on('open', () => {
-                    myPin = Math.floor(100000 + Math.random() * 900000).toString();
-                    document.getElementById('pinDisplayVal').innerText = myPin;
-                    conn.salt = Math.random().toString(36);
-                    document.getElementById('screenConnect').classList.add('hidden');
-                    document.getElementById('screenAuth').classList.remove('hidden');
-                    document.getElementById('authReceiver').classList.remove('hidden');
-                    c.send({ type: 'HELLO', salt: conn.salt });
-                });
-                setupData();
-            });
-        }
-        
-        function shareLink() {
-            const url = window.location.origin + window.location.pathname + "?connect=" + document.getElementById('myName').value;
-            navigator.clipboard.writeText(url);
-            alert("Link kopiert!\n" + url);
+            peer.on('connection', handleIncomingConnection);
         }
 
-        function connect() {
+        function handleIncomingConnection(conn) {
+            setupConnectionEvents(conn);
+        }
+
+        function connectToPeer() {
             const p = document.getElementById('partnerName').value;
-            conn = peer.connect(PREFIX + p);
-            conn.on('open', setupData);
+            if(!p) return;
+            const conn = peer.connect(PREFIX + p);
+            setupConnectionEvents(conn);
         }
 
-        function setupData() {
-            conn.on('data', async (d) => {
-                if (d.type === 'HELLO') {
-                    conn.pSalt = d.salt; 
-                    document.getElementById('screenConnect').classList.add('hidden');
-                    document.getElementById('screenAuth').classList.remove('hidden');
-                    document.getElementById('authSender').classList.remove('hidden');
-                }
-                if (d.type === 'KEY_OFFER') {
-                    try {
-                        const pinKey = await derivePinKey(myPin, conn.salt);
-                        const rawSuperKey = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(d.iv) }, pinKey, d.keyData);
-                        superKey = await crypto.subtle.importKey("raw", rawSuperKey, "AES-GCM", true, ["encrypt", "decrypt"]);
-                        conn.send({ type: 'KEY_ACK' });
-                        showTrans();
-                    } catch(e) { conn.send({ type: 'KEY_FAIL' }); }
-                }
-                if (d.type === 'KEY_ACK') showTrans();
+        function setupConnectionEvents(conn) {
+            conn.on('open', () => {
+                // Determine Initiator (Alphabetical sort to decide who generates PIN vs Enters)
+                // Actually, let's keep it simple: Receiver always shows PIN, Sender Enters.
+                // PeerJS Metadata or just handshake?
+                // Let's use the protocol:
+                // 1. Connection established.
+                // 2. Both exchange HELLO.
                 
-                // CHAT
-                if (d.type === 'CHAT') {
-                    const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(d.iv) }, superKey, d.data);
-                    const txt = new TextDecoder().decode(dec);
-                    addChatMsg(txt, false);
-                    playSound();
+                // Init connection object
+                connections[conn.peer] = { conn: conn, key: null, salt: Math.random().toString(36), authenticated: false };
+                
+                // Send HELLO with Salt
+                conn.send({ type: 'HELLO', salt: connections[conn.peer].salt });
+                
+                updateDeviceList();
+                
+                // Measure Latency (Ping)
+                const start = Date.now();
+                conn.send({ type: 'PING', time: start });
+            });
+
+            conn.on('data', (d) => handleData(conn, d));
+            
+            conn.on('close', () => {
+                // GHOST PROTOCOL: Remove all chats from this user
+                ghostCleanup(conn.peer);
+                delete connections[conn.peer];
+                updateDeviceList();
+            });
+            
+            conn.on('error', () => { delete connections[conn.peer]; updateDeviceList(); });
+        }
+        
+        function ghostCleanup(peerId) {
+            const msgs = document.querySelectorAll(`.msg[data-sender="${peerId}"]`);
+            msgs.forEach(m => m.remove());
+        }
+
+        async function handleData(conn, d) {
+            const peerId = conn.peer;
+            const state = connections[peerId];
+            
+            if (d.type === 'PING') { conn.send({ type: 'PONG', time: d.time }); }
+            if (d.type === 'PONG') { 
+                const rtt = Date.now() - d.time;
+                state.isWan = rtt > 50; // Simple heuristic
+                updateDeviceList();
+            }
+
+            // AUTH HANDSHAKE
+            if (d.type === 'HELLO') {
+                state.pSalt = d.salt;
+                // If I initiated (or just logic): The one who receives Connection usually Hosts?
+                // Let's force Manual Trigger: The user who clicked "Add" is the 'Connector'. 
+                // Wait... simpler:
+                // When "HELLO" is received, we are technically connected but not auth'd.
+                // Show in Device List as "Auth needed".
+                updateDeviceList();
+                
+                // Auto-generate PIN on my side just in case I am the Receiver
+                myPin = Math.floor(100000 + Math.random() * 900000).toString();
+                document.getElementById('pinDisplayVal').innerText = myPin;
+            }
+
+            if (d.type === 'KEY_OFFER') {
+                try {
+                    // I am Receiver. I showed PIN.
+                    const pinKey = await derivePinKey(myPin, state.salt); // My salt was sent in HELLO
+                    const rawSuperKey = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(d.iv) }, pinKey, d.keyData);
+                    state.key = await crypto.subtle.importKey("raw", rawSuperKey, "AES-GCM", true, ["encrypt", "decrypt"]);
+                    state.authenticated = true;
+                    conn.send({ type: 'KEY_ACK' });
+                    
+                    document.getElementById('authArea').classList.add('hidden');
+                    document.getElementById('authReceiver').classList.add('hidden');
+                    updateDeviceList();
+                } catch(e) { conn.send({ type: 'KEY_FAIL' }); }
+            }
+
+            if (d.type === 'KEY_ACK') {
+                // I am Sender.
+                state.authenticated = true;
+                document.getElementById('authArea').classList.add('hidden');
+                document.getElementById('authSender').classList.add('hidden');
+                updateDeviceList();
+            }
+
+            if (d.type === 'KEY_FAIL') alert("PIN falsch!");
+
+            // ENCRYPTED CONTENT
+            if (!state.key) return; // Ignore if not auth
+
+            if (d.type === 'CHAT') {
+                const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(d.iv) }, state.key, d.data);
+                const txt = new TextDecoder().decode(dec);
+                addChatMsg(txt, false, peerId);
+                playSound();
+            }
+
+            if (d.type === 'FILE_START') {
+                incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, hash: d.hash, burn: d.burn };
+                document.getElementById('bulkArea').classList.remove('hidden');
+                document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
+            }
+            if (d.type === 'FILE_CHUNK') {
+                const f = incoming[d.id];
+                if (!f) return;
+                f.buffer.push(d.data);
+                f.received += d.data.byteLength;
+                const pct = (f.received / f.total) * 100;
+                document.getElementById('pBar').style.width = pct + '%';
+                if (f.received >= f.total) {
+                    await finalizeDownload(d.id, state.key);
+                    delete incoming[d.id]; 
+                }
+            }
+        }
+
+        // --- UI ACTIONS ---
+        function updateDeviceList() {
+            const list = document.getElementById('deviceList');
+            list.innerHTML = '';
+            
+            Object.keys(connections).forEach(pid => {
+                const s = connections[pid];
+                const name = pid.replace(PREFIX, '');
+                
+                const div = document.createElement('div');
+                div.className = 'device-row';
+                
+                let badge = '<span style="color:#fbbf24; font-size:0.8rem;">🔒 Auth nötig</span>';
+                if (s.authenticated) {
+                    const net = s.isWan ? '<span class="badge-wan">🌍 WEB</span>' : '<span class="badge-lan">🏠 LAN</span>';
+                    badge = `<span style="color:#22c55e; font-size:0.8rem;">Verbundene</span> ${net}`;
                 }
 
-                // FILES
-                if (d.type === 'FILE_START') {
-                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, hash: d.hash, burn: d.burn };
-                    document.getElementById('bulkArea').classList.remove('hidden');
-                    document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
-                }
-                if (d.type === 'FILE_CHUNK') {
-                    const f = incoming[d.id];
-                    if (!f) return;
-                    f.buffer.push(d.data);
-                    f.received += d.data.byteLength;
-                    const pct = (f.received / f.total) * 100;
-                    document.getElementById('pBar').style.width = pct + '%';
-                    if (f.received >= f.total) {
-                        await finalizeDownload(d.id);
-                        delete incoming[d.id]; 
-                    }
-                }
+                div.innerHTML = `
+                    <div>
+                        <strong>${name}</strong><br>
+                        ${badge}
+                    </div>
+                    ${!s.authenticated ? `<button class="btn-green" style="padding:5px 10px; font-size:0.8rem;" onclick="startAuth('${pid}')">🔑 Code eingeben</button> <button class="btn-blue" style="padding:5px 10px; font-size:0.8rem;" onclick="showMyPin('${pid}')">🔢 Code zeigen</button>` : ''}
+                `;
+                list.appendChild(div);
             });
         }
 
-        async function submitPin() { 
-            const pin = document.getElementById('inputPin').value;
-            const newSuperKey = await generateSuperKey();
-            superKey = newSuperKey;
-            const pinKey = await derivePinKey(pin, conn.pSalt);
-            const rawSuperKey = await crypto.subtle.exportKey("raw", newSuperKey);
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const encryptedKey = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, pinKey, rawSuperKey);
-            conn.send({ type: 'KEY_OFFER', iv: iv, keyData: encryptedKey });
+        function startAuth(pid) {
+            pendingAuthPeer = pid;
+            document.getElementById('authArea').classList.remove('hidden');
+            document.getElementById('authSender').classList.remove('hidden');
+            document.getElementById('authReceiver').classList.add('hidden');
         }
-        
-        function showTrans() { 
-            document.getElementById('screenAuth').classList.add('hidden');
-            document.getElementById('screenMain').classList.remove('hidden');
-            setStatus('🔒 Verbunden', 'secure');
+
+        function showMyPin(pid) {
+            document.getElementById('authArea').classList.remove('hidden');
+            document.getElementById('authReceiver').classList.remove('hidden');
+            document.getElementById('authSender').classList.add('hidden');
+        }
+
+        async function submitPin() {
+            if (!pendingAuthPeer) return;
+            const pin = document.getElementById('inputPin').value;
+            const state = connections[pendingAuthPeer];
+            
+            // Generate Key
+            const newKey = await generateSuperKey();
+            state.key = newKey;
+            
+            // Encrypt Key with PIN + THEIR Salt (stored in state.pSalt)
+            const pinKey = await derivePinKey(pin, state.pSalt);
+            const rawKey = await crypto.subtle.exportKey("raw", newKey);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encryptedKey = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, pinKey, rawKey);
+            
+            state.conn.send({ type: 'KEY_OFFER', iv: iv, keyData: encryptedKey });
+        }
+
+        function rotateSecurity() {
+            if(!confirm("Wirklich alles zurücksetzen?")) return;
+            // Close all
+            Object.values(connections).forEach(c => c.conn.close());
+            connections = {};
+            document.getElementById('chatBox').innerHTML = '';
+            localStorage.removeItem('sft_v26'); // Optional: Clear settings too? No, just keys.
+            location.reload(); 
         }
 
         // --- CHAT ---
         async function sendChat() {
-            const input = document.getElementById('chatInput');
-            const txt = input.value;
-            if(!txt || !superKey) return;
+            const txt = document.getElementById('chatInput').value;
+            if(!txt) return;
             
+            // Broadcast
             const enc = new TextEncoder().encode(txt);
-            const iv = crypto.getRandomValues(new Uint8Array(12));
-            const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, superKey, enc);
-            
-            conn.send({ type: 'CHAT', iv: iv, data: encrypted });
-            addChatMsg(txt, true);
-            input.value = '';
+            for (let pid in connections) {
+                const s = connections[pid];
+                if(s.authenticated && s.key) {
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, s.key, enc);
+                    s.conn.send({ type: 'CHAT', iv: iv, data: encrypted });
+                }
+            }
+            addChatMsg(txt, true, 'me');
+            document.getElementById('chatInput').value = '';
         }
-        function addChatMsg(txt, me) {
+
+        function addChatMsg(txt, me, senderId) {
             const d = document.createElement('div');
             d.className = 'msg ' + (me ? 'me' : 'other');
-            d.innerText = txt;
+            d.setAttribute('data-sender', me ? 'me' : senderId);
+            
+            const meta = document.createElement('div');
+            meta.className = 'msg-meta';
+            meta.innerText = me ? 'Ich' : senderId.replace(PREFIX, '');
+            
+            d.appendChild(meta);
+            d.appendChild(document.createTextNode(txt));
+            
             const box = document.getElementById('chatBox');
             box.appendChild(d);
             box.scrollTop = box.scrollHeight;
-            if(!me) switchTab('chat'); 
+            if(!me) switchTab('chat');
         }
 
-        // --- FILE ---
+        // --- FILES ---
         async function startBulkUpload() {
-            if(!superKey) return alert("Kein Key!");
             const files = Array.from(document.getElementById('files').files);
-            if (files.length === 0) return;
-            const mode = document.getElementById('compressMode').value;
-            const doIntegrity = document.getElementById('optIntegrity').checked;
-            const doBurn = document.getElementById('optBurn').checked;
-            const doStealth = document.getElementById('optStealth').checked;
-
+            if(files.length === 0) return;
             document.getElementById('bulkArea').classList.remove('hidden');
-            
-            for (let i = 0; i < files.length; i++) {
-                let f = files[i];
-                let name = f.name;
-                document.getElementById('currentFileName').innerText = "Sende: " + name;
-                document.getElementById('pBar').style.width = '0%';
-                if (doStealth) name = "sec_" + Math.random().toString(36).substr(2,6);
 
-                let blob = f;
-                if (mode === 'smart' && f.size > 2*1024*1024 && f.type.startsWith('image/')) {
-                    try {
-                        const bmp = await createImageBitmap(f);
-                        const cvs = document.createElement('canvas');
-                        cvs.width = bmp.width; cvs.height = bmp.height;
-                        cvs.getContext('2d').drawImage(bmp,0,0);
-                        blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
-                        if(!doStealth) name = name.replace(/\.[^/.]+$/, "") + ".jpg";
-                    } catch (e) {}
-                }
+            for (let f of files) {
+                let raw = await f.arrayBuffer();
+                document.getElementById('currentFileName').innerText = "Sende: " + f.name;
 
-                const raw = await blob.arrayBuffer();
-                let hash = null; 
-                if(doIntegrity) hash = await sha256(raw);
+                // Send to EACH authenticated peer individually (different keys)
+                for (let pid in connections) {
+                    const s = connections[pid];
+                    if (s.authenticated && s.key) {
+                        const iv = crypto.getRandomValues(new Uint8Array(12));
+                        const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, s.key, raw);
+                        const packed = new Uint8Array(iv.length + encrypted.byteLength);
+                        packed.set(iv); packed.set(new Uint8Array(encrypted), iv.length);
 
-                const iv = crypto.getRandomValues(new Uint8Array(12));
-                const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, superKey, raw);
-                const packed = new Uint8Array(iv.length + encrypted.byteLength);
-                packed.set(iv); packed.set(new Uint8Array(encrypted), iv.length);
-
-                const fileId = Math.random().toString(36).substr(2, 9);
-                conn.send({ type: 'FILE_START', id: fileId, name: name, size: packed.byteLength, mime: blob.type, hash: hash, burn: doBurn });
-
-                let offset = 0;
-                while (offset < packed.byteLength) {
-                    const chunk = packed.slice(offset, offset + CHUNK_SIZE);
-                    conn.send({ type: 'FILE_CHUNK', id: fileId, data: chunk });
-                    offset += CHUNK_SIZE;
-                    if (offset % (CHUNK_SIZE * 5) === 0) {
-                        document.getElementById('pBar').style.width = ((offset / packed.byteLength) * 100) + '%';
-                        await new Promise(r => setTimeout(r, 5)); 
+                        const fileId = Math.random().toString(36).substr(2, 9);
+                        s.conn.send({ type: 'FILE_START', id: fileId, name: f.name, size: packed.byteLength, mime: f.type });
+                        
+                        // Chunking
+                        let offset = 0;
+                        while(offset < packed.byteLength) {
+                            const chunk = packed.slice(offset, offset + CHUNK_SIZE);
+                            s.conn.send({ type: 'FILE_CHUNK', id: fileId, data: chunk });
+                            offset += CHUNK_SIZE;
+                            if (offset % (CHUNK_SIZE*5) === 0) await new Promise(r => setTimeout(r, 5));
+                        }
                     }
                 }
-                await new Promise(r => setTimeout(r, 100)); 
+                await new Promise(r => setTimeout(r, 100));
             }
             document.getElementById('currentFileName').innerText = "Fertig!";
         }
 
-        async function finalizeDownload(id) {
+        async function finalizeDownload(id, key) {
             const f = incoming[id];
             const full = new Uint8Array(f.total);
             let off = 0;
@@ -460,14 +562,8 @@
             try {
                 const iv = full.slice(0, 12);
                 const data = full.slice(12);
-                const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, superKey, data);
+                const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
                 
-                let verified = '';
-                if(f.hash) {
-                    const myHash = await sha256(dec);
-                    verified = (myHash === f.hash) ? '✔️' : '⚠️';
-                }
-
                 const blob = new Blob([dec], {type: f.mime});
                 const url = URL.createObjectURL(blob);
                 receivedFiles.push({ name: f.name, blob: blob });
@@ -476,39 +572,18 @@
 
                 const div = document.createElement('div');
                 div.className = 'file-item';
-                
-                let thumbHtml = '<div class="thumb" style="background:#334155; display:flex; align-items:center; justify-content:center;">📄</div>';
-                let onclick = '';
-
-                if (f.mime.startsWith('image/')) {
-                    thumbHtml = `<img src="${url}" class="thumb">`;
-                    onclick = `document.getElementById('lightbox').classList.remove('hidden'); document.getElementById('lbImg').src='${url}'; document.getElementById('lbImg').classList.remove('hidden'); document.getElementById('lbVid').classList.add('hidden');`;
-                } else if (f.mime.startsWith('video/')) {
-                    thumbHtml = '<div class="thumb" style="background:#334155; display:flex; align-items:center; justify-content:center;">▶️</div>';
-                    onclick = `document.getElementById('lightbox').classList.remove('hidden'); document.getElementById('lbVid').src='${url}'; document.getElementById('lbVid').classList.remove('hidden'); document.getElementById('lbImg').classList.add('hidden'); document.getElementById('lbVid').play();`;
-                }
-
-                div.innerHTML = `
-                    <div style="display:flex; align-items:center; flex-grow:1; cursor:pointer;" onclick="${onclick}">
-                        ${thumbHtml}
-                        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px;">
-                            ${f.name} ${f.burn?'🔥':''} ${verified}<br><small>${(f.total/1024).toFixed(0)} KB</small>
-                        </div>
-                    </div>
-                    <a href="${url}" download="${f.name}" style="background:var(--btn-green); color:#022c22; padding:5px 10px; text-decoration:none; border-radius:4px; font-weight:bold;">⬇️</a>
-                `;
+                div.innerHTML = `<div>${f.name}</div><a href="${url}" download="${f.name}">⬇️</a>`;
                 document.getElementById('fileList').prepend(div);
             } catch(e) { console.error(e); }
         }
         
         async function downloadAllZip() {
-            if(receivedFiles.length===0) return;
             const zip = new JSZip();
             receivedFiles.forEach(f => zip.file(f.name, f.blob));
-            const content = await zip.generateAsync({type:"blob"});
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a'); a.href = url; a.download = "Files.zip"; a.click();
+            const c = await zip.generateAsync({type:"blob"});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(c); a.download = "Files.zip"; a.click();
         }
+        function shareLink() { navigator.clipboard.writeText(window.location.origin + window.location.pathname + "?connect=" + document.getElementById('myName').value); alert("Link kopiert!"); }
     </script>
 </body>
 </html>

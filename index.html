@@ -1,7 +1,337 @@
-[18:17:37] Verbinde zu Raum 568 via WebSocket...
-[18:17:37] Verbinde zu Raum 568 via WebSocket...
-[18:17:36] Verbinde zu Raum 568 via WebSocket...
-[18:17:36] Verbinde zu Raum 568 via WebSocket...
-[18:17:35] Verbinde zu Raum 568 via WebSocket...
-[18:17:27] Verbinde zu Raum 568 via WebSocket...
-System bereit.
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sicherer File Transfer - V10 (Based on V6)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #eef2f5; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2 { margin: 0 0 15px 0; color: #2d3748; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; box-sizing: border-box; text-align: center; }
+        button { width: 100%; padding: 14px; background: #4299e1; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button.green { background: #48bb78; }
+        button.red { background: #f56565; }
+        .hidden { display: none; }
+        .log-box { background: #2d3748; color: #a0aec0; padding: 10px; font-family: monospace; font-size: 11px; height: 120px; overflow-y: scroll; border-radius: 8px; margin-top: 20px; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status-badge.online { background: #c6f6d5; color: #22543d; }
+        .status-badge.offline { background: #fed7d7; color: #822727; }
+        .recent-list { margin-top: 10px; text-align: center; }
+        .recent-item { display: inline-block; background: #e2e8f0; padding: 5px 10px; border-radius: 15px; margin: 3px; font-size: 0.85em; cursor: pointer; color: #4a5568; }
+        .file-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div style="text-align:center; margin-bottom:20px;">
+        <h2>🛡️ Transfer V10 (Stable)</h2>
+        <div id="connectionStatus" class="status-badge offline">Offline</div>
+    </div>
+
+    <!-- Screen 1: Setup -->
+    <div id="screenSetup" class="card">
+        <h2>1. Einrichtung</h2>
+        <p style="color:#718096; font-size:0.9em; margin-bottom:15px;">Wähle einen Namen für dieses Gerät.</p>
+        <input type="text" id="myName" placeholder="z.B. handy1" onkeyup="cleanInput(this)">
+        <button onclick="startMyPeer()">🚀 Online gehen</button>
+    </div>
+
+    <!-- Screen 2: Dashboard -->
+    <div id="screenDashboard" class="card hidden">
+        <div style="text-align:center; margin-bottom:20px;">
+            <span style="color:#718096">Dein Name:</span><br>
+            <strong id="displayName" style="font-size:1.4em; color:#4299e1;">...</strong>
+        </div>
+
+        <div style="border-top: 2px dashed #e2e8f0; margin: 20px 0;"></div>
+
+        <h3>Verbinden</h3>
+        <p style="color:#718096; font-size:0.9em;">Name des Partners:</p>
+        <input type="text" id="partnerName" placeholder="Name des Partners" onkeyup="cleanInput(this)">
+        <button class="green" onclick="connectToPartner()" id="btnConnect">🔗 Verbinden</button>
+        
+        <!-- Recent Devices List -->
+        <div id="recentList" class="recent-list hidden"></div>
+    </div>
+
+    <!-- Screen 3: PIN Auth -->
+    <div id="screenAuth" class="card hidden">
+        <h2 style="text-align:center">🔒 Sicherheit</h2>
+        
+        <!-- Receiver View -->
+        <div id="viewReceiver" class="hidden">
+            <p style="text-align:center">Anfrage von <strong id="incomingPeerName">...</strong></p>
+            <p style="text-align:center; font-size:0.9em;">Zeige ihm diesen Code:</p>
+            <div id="myPinDisplay" style="font-size: 42px; letter-spacing: 8px; font-weight: 800; text-align: center; background: #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0;">----</div>
+        </div>
+
+        <!-- Sender View -->
+        <div id="viewSender" class="hidden">
+            <p style="text-align:center">Verbunden! Warte auf Code...</p>
+            <p style="text-align:center; font-size:0.9em;">Gib den Code vom Partner ein:</p>
+            <input type="tel" id="inputPin" placeholder="0000" maxlength="4" style="font-size:32px; letter-spacing:5px;">
+            <button class="green" onclick="submitPin()">Bestätigen</button>
+        </div>
+
+        <button class="red" onclick="location.reload()" style="margin-top:20px;">Abbrechen</button>
+    </div>
+
+    <!-- Screen 4: Transfer -->
+    <div id="screenTransfer" class="card hidden">
+        <h2 style="text-align:center; color:#48bb78;">✅ Bereit</h2>
+        
+        <div style="background:#f0fff4; padding:20px; border:2px dashed #48bb78; border-radius:10px; text-align:center; margin-bottom:20px;">
+            <p style="margin-bottom:10px;">Dateien senden:</p>
+            <input type="file" id="fileInput" multiple>
+            <button class="green" onclick="uploadFiles()">Senden</button>
+        </div>
+
+        <h3>Empfangen:</h3>
+        <div id="fileList" style="margin-top:10px;"></div>
+        <button class="red" onclick="location.reload()" style="margin-top:30px;">Trennen</button>
+    </div>
+
+    <div id="debug" class="log-box">Log startet...</div>
+
+    <script>
+        // --- Configuration V10 (Based on V6 provided by user) ---
+        const PREFIX = 'sft-v10-final-';
+        
+        const ICE_SERVERS = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+        ];
+
+        let peer, conn, myPin, myId;
+        let receivedHistory = []; // Prevent overwriting
+        let recents = JSON.parse(localStorage.getItem('sft_recents') || '[]');
+
+        // --- Utils ---
+        function log(msg) {
+            const d = document.getElementById('debug');
+            const time = new Date().toLocaleTimeString().split(' ')[0];
+            d.innerHTML = `<div>[${time}] ${msg}</div>` + d.innerHTML;
+        }
+        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+        function setStatus(cls, msg) {
+            const el = document.getElementById('connectionStatus');
+            el.className = 'status-badge ' + cls;
+            el.innerText = msg;
+        }
+
+        // --- Recents Logic ---
+        function updateRecents(name) {
+            if (!recents.includes(name)) {
+                recents.unshift(name);
+                if (recents.length > 5) recents.pop();
+                localStorage.setItem('sft_recents', JSON.stringify(recents));
+            }
+            renderRecents();
+        }
+        
+        function renderRecents() {
+            const container = document.getElementById('recentList');
+            if (recents.length > 0) {
+                container.innerHTML = '<p style="font-size:0.8em; color:#666; margin-bottom:5px;">Zuletzt:</p>';
+                container.classList.remove('hidden');
+                recents.forEach(r => {
+                    const el = document.createElement('span');
+                    el.className = 'recent-item';
+                    el.innerText = r;
+                    el.onclick = () => { document.getElementById('partnerName').value = r; connectToPartner(); };
+                    container.appendChild(el);
+                });
+            }
+        }
+
+        // --- 1. Start Peer ---
+        function startMyPeer() {
+            const name = document.getElementById('myName').value;
+            if (name.length < 2) return alert("Name zu kurz");
+            
+            myId = name;
+            const fullId = PREFIX + name;
+            
+            log('Verbinde mit Server...');
+            peer = new Peer(fullId, {
+                debug: 1,
+                config: { iceServers: ICE_SERVERS }
+            });
+
+            peer.on('open', (id) => {
+                log('✅ Online als: ' + name);
+                setStatus('online', 'Online');
+                document.getElementById('screenSetup').classList.add('hidden');
+                document.getElementById('screenDashboard').classList.remove('hidden');
+                document.getElementById('displayName').innerText = name;
+                renderRecents();
+            });
+
+            peer.on('error', (err) => {
+                log('❌ ' + err.type);
+                if (err.type === 'unavailable-id') alert("Name belegt! Wähle einen anderen.");
+                else alert("Fehler: " + err.type);
+            });
+
+            // RECEIVER LOGIC
+            peer.on('connection', (c) => {
+                log('⚡ Eingehende Verbindung...');
+                document.getElementById('screenDashboard').classList.add('hidden');
+                
+                c.on('open', () => {
+                    log('✅ Kanal offen! Sende Handshake...');
+                    myPin = Math.floor(1000 + Math.random() * 9000).toString();
+                    c.send({ type: 'HANDSHAKE_HELLO' });
+                    
+                    document.getElementById('screenAuth').classList.remove('hidden');
+                    document.getElementById('viewReceiver').classList.remove('hidden');
+                    document.getElementById('myPinDisplay').innerText = myPin;
+                    document.getElementById('incomingPeerName').innerText = c.peer.replace(PREFIX, '');
+                    
+                    conn = c;
+                    setupDataHandler();
+                });
+            });
+        }
+
+        // --- 2. Connect (Sender) ---
+        function connectToPartner() {
+            const partner = document.getElementById('partnerName').value;
+            if (!partner) return;
+            
+            const fullPartner = PREFIX + partner;
+            log('⏳ Suche ' + partner + '...');
+            
+            const btn = document.getElementById('btnConnect');
+            btn.disabled = true;
+            btn.innerText = "Verbinde...";
+
+            const c = peer.connect(fullPartner, {
+                reliable: true,
+                serialization: 'binary'
+            });
+
+            c.on('open', () => {
+                log('✅ Kanal offen! Warte auf Antwort...');
+                conn = c;
+                setupDataHandler();
+            });
+            
+            c.on('error', (err) => {
+                alert("Verbindung fehlgeschlagen. Ist der Partner online?");
+                location.reload();
+            });
+            
+            // Timeout Watchdog
+            setTimeout(() => {
+                if (!conn || !conn.open) {
+                    alert("Zeitüberschreitung. Firewall blockiert eventuell.");
+                    location.reload();
+                }
+            }, 8000);
+        }
+
+        // --- 3. Protocol ---
+        function setupDataHandler() {
+            conn.on('data', (data) => {
+                // Handshake
+                if (data.type === 'HANDSHAKE_HELLO') {
+                    document.getElementById('screenDashboard').classList.add('hidden');
+                    document.getElementById('screenAuth').classList.remove('hidden');
+                    document.getElementById('viewSender').classList.remove('hidden');
+                }
+
+                // Auth
+                if (data.type === 'AUTH_PIN') {
+                    if (data.pin === myPin) {
+                        conn.send({ type: 'AUTH_OK' });
+                        showTransfer();
+                    } else {
+                        conn.send({ type: 'AUTH_FAIL' });
+                        alert("Falscher Code!");
+                        location.reload();
+                    }
+                }
+
+                if (data.type === 'AUTH_OK') {
+                    // Success! Save recent
+                    const partner = document.getElementById('partnerName').value;
+                    if(partner) updateRecents(partner);
+                    showTransfer();
+                }
+                if (data.type === 'AUTH_FAIL') { alert("Falscher Code!"); location.reload(); }
+
+                // File
+                if (data.type === 'FILE_CHUNK') receiveFile(data);
+            });
+
+            conn.on('close', () => { alert("Verbindung getrennt!"); location.reload(); });
+        }
+
+        function submitPin() {
+            const pin = document.getElementById('inputPin').value;
+            conn.send({ type: 'AUTH_PIN', pin: pin });
+        }
+
+        function showTransfer() {
+            document.getElementById('screenAuth').classList.add('hidden');
+            document.getElementById('screenTransfer').classList.remove('hidden');
+        }
+
+        // --- 4. File Transfer (With Rename Logic) ---
+        function uploadFiles() {
+            const files = document.getElementById('fileInput').files;
+            Array.from(files).forEach(f => {
+                log('Sende: ' + f.name);
+                conn.send({
+                    type: 'FILE_CHUNK',
+                    name: f.name,
+                    mime: f.type,
+                    blob: f,
+                    size: f.size
+                });
+            });
+            alert("Dateien gesendet!");
+        }
+
+        function receiveFile(data) {
+            let finalName = data.name;
+            let counter = 1;
+            
+            // Rename logic: Check if file exists in session history
+            while (receivedHistory.includes(finalName)) {
+                let parts = data.name.split('.');
+                let ext = parts.pop();
+                let base = parts.join('.');
+                finalName = `${base} (${counter}).${ext}`;
+                counter++;
+            }
+            receivedHistory.push(finalName);
+
+            log('Erhalten: ' + finalName);
+            const blob = new Blob([data.blob], { type: data.mime });
+            const url = URL.createObjectURL(blob);
+            
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `
+                <div>
+                    <strong>${finalName}</strong> <br>
+                    <small>${(data.size/1024/1024).toFixed(2)} MB</small>
+                </div>
+                <a href="${url}" download="${finalName}" 
+                   style="padding:5px 15px; background:#48bb78; color:white; text-decoration:none; border-radius:4px;">
+                   💾 Speichern
+                </a>
+            `;
+            document.getElementById('fileList').prepend(div);
+        }
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Sicherer File Transfer - Pro</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
@@ -11,42 +11,57 @@
       --secondary: #764ba2;
       --success: #10b981;
       --danger: #ef4444;
-      --warning: #f59e0b;
       --bg: #f3f4f6;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
     
     body {
       background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       min-height: 100vh;
-      padding: 20px;
+      padding: 15px;
       color: #333;
     }
 
-    .container { max-width: 900px; margin: 0 auto; }
+    .container { max-width: 800px; margin: 0 auto; }
     
     .card {
       background: white;
       border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-      transition: transform 0.2s;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     }
 
-    h1 { color: var(--primary); text-align: center; margin-bottom: 8px; }
-    .subtitle { text-align: center; color: #666; margin-bottom: 24px; font-size: 0.9em; }
+    h1 { color: var(--primary); text-align: center; margin-bottom: 5px; font-size: 1.5rem; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 0.9em; }
 
     /* Custom ID Section */
     .id-setup {
       background: #f8fafc;
-      padding: 15px;
+      padding: 20px;
       border-radius: 12px;
       border: 2px solid #e2e8f0;
       text-align: center;
-      margin-bottom: 20px;
     }
+
+    /* Recent Peers List */
+    .recent-list {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .recent-chip {
+      background: #e0e7ff;
+      color: #4338ca;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85em;
+      cursor: pointer;
+      border: 1px solid #c7d2fe;
+    }
+    .recent-chip:hover { background: #c7d2fe; }
 
     /* Status Bar */
     .status-bar {
@@ -54,17 +69,12 @@
       border-radius: 8px;
       text-align: center;
       font-weight: 600;
-      margin-bottom: 20px;
-      transition: all 0.3s;
+      margin-bottom: 15px;
+      font-size: 0.9rem;
     }
-    .status-offline { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-    .status-connecting { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-    .status-online { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-
-    /* Grid Layout */
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    
-    @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .status-offline { background: #fee2e2; color: #991b1b; }
+    .status-connecting { background: #fef3c7; color: #92400e; }
+    .status-online { background: #d1fae5; color: #065f46; }
 
     /* Inputs & Buttons */
     input[type="text"], input[type="password"] {
@@ -72,40 +82,35 @@
       padding: 12px;
       border: 2px solid #e5e7eb;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 16px; /* Prevents zoom on iOS */
       margin-bottom: 10px;
-      transition: border-color 0.2s;
     }
     input:focus { outline: none; border-color: var(--primary); }
 
     .btn {
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       border: none;
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
       font-size: 16px;
+      touch-action: manipulation;
     }
     .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
     .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
     
     /* Upload Area */
     .upload-area {
-      border: 3px dashed #cbd5e1;
+      border: 2px dashed #cbd5e1;
       border-radius: 12px;
-      padding: 40px;
+      padding: 30px;
       text-align: center;
-      cursor: pointer;
       background: #f8fafc;
+      cursor: pointer;
     }
-    .upload-area:hover, .upload-area.dragover {
-      border-color: var(--primary);
-      background: #eff6ff;
-    }
-
+    
     /* File List */
     .file-item {
       display: flex;
@@ -117,25 +122,29 @@
       margin-bottom: 8px;
       border-left: 4px solid var(--primary);
     }
-    .file-meta { display: flex; flex-direction: column; }
-    .file-name { font-weight: 600; color: #333; }
+    .file-meta { display: flex; flex-direction: column; overflow: hidden; }
+    .file-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
     .file-size { font-size: 0.8em; color: #666; }
 
-    /* Auth Modal */
+    /* Modal */
     .modal-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(2px);
       display: flex; justify-content: center; align-items: center;
-      z-index: 1000;
+      z-index: 9999;
+      padding: 20px;
     }
     .modal {
-      background: white; padding: 30px; border-radius: 16px;
-      width: 90%; max-width: 400px; text-align: center;
+      background: white; padding: 25px; border-radius: 16px;
+      width: 100%; max-width: 350px; text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
     .pin-display {
-      font-size: 32px; letter-spacing: 5px; font-weight: bold;
+      font-size: 36px; letter-spacing: 5px; font-weight: bold;
       color: var(--primary); margin: 20px 0;
-      background: #f3f4f6; padding: 10px; border-radius: 8px;
+      background: #f3f4f6; padding: 15px; border-radius: 8px;
+      font-family: monospace;
     }
 
     .hidden { display: none !important; }
@@ -145,47 +154,45 @@
 
 <div class="container">
   <div class="card">
-    <h1>🚀 Sicherer File Transfer Pro</h1>
-    <p class="subtitle">P2P • Verschlüsselt • Schnell • Keine Cloud</p>
+    <h1>🚀 Sicherer File Transfer</h1>
+    <p class="subtitle">P2P • Verschlüsselt • V2.1</p>
     
     <!-- ID Setup -->
     <div id="setupPanel" class="id-setup">
-      <h3>👋 Wer bist du?</h3>
-      <p style="color: #666; margin-bottom: 10px;">Wähle einen Namen, damit dich andere im WLAN leichter finden.</p>
-      <div style="display: flex; gap: 10px;">
-        <input type="text" id="myCustomId" placeholder="z.B. Max-Laptop" maxlength="20">
-        <button class="btn btn-primary" onclick="initPeer()" style="width: auto;">Starten</button>
-      </div>
+      <h3>👋 Dein Name</h3>
+      <p style="color: #666; margin: 10px 0;">Wie soll dieses Gerät heißen?</p>
+      <input type="text" id="myCustomId" placeholder="z.B. Mein-Handy" maxlength="20" onkeypress="handleEnter(event, initPeer)">
+      <button class="btn btn-primary" onclick="initPeer()">Starten</button>
     </div>
 
-    <!-- Status -->
+    <!-- Main App -->
     <div id="appPanel" class="hidden">
       <div id="statusBox" class="status-bar status-offline">Offline</div>
       
-      <div class="grid">
-        <!-- Connect -->
-        <div class="card" style="border: 1px solid #e5e7eb;">
-          <h3>🔗 Verbinden</h3>
-          <p style="font-size: 0.9em; color: #666; margin: 10px 0;">Gib den Namen des anderen Geräts ein:</p>
-          <input type="text" id="targetIdInput" placeholder="z.B. Anna-Handy">
-          <button class="btn btn-primary" onclick="connectToPeer()">Verbindungsanfrage senden</button>
-        </div>
+      <!-- Connection Panel -->
+      <div class="card" style="border: 1px solid #e5e7eb;">
+        <h3>🔗 Verbindung herstellen</h3>
+        <p style="font-size: 0.9em; color: #666; margin: 10px 0;">Name des anderen Geräts:</p>
         
-        <!-- My Info -->
-        <div class="card" style="background: #eff6ff; border: 1px solid #bfdbfe;">
-          <h3>👤 Dein Status</h3>
-          <p style="margin-top: 10px;">Dein Name: <strong id="displayId">-</strong></p>
-          <p style="font-size: 0.8em; color: #666;">Teile diesen Namen mit dem Sender.</p>
+        <input type="text" id="targetIdInput" placeholder="z.B. Dein-PC" onkeypress="handleEnter(event, connectToPeer)">
+        <button class="btn btn-primary" onclick="connectToPeer()">Verbinden</button>
+        
+        <!-- Recent Devices -->
+        <div id="recentPeers" class="recent-list hidden">
+          <!-- Filled by JS -->
+        </div>
+
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; font-size: 0.9em;">
+          Dein Name: <strong id="displayId" style="color: var(--primary);">...</strong>
         </div>
       </div>
 
-      <!-- Upload -->
+      <!-- Upload Panel -->
       <div class="card">
-        <h3>📂 Datei-Upload</h3>
+        <h3>📂 Dateien</h3>
         <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
-          <div style="font-size: 40px; margin-bottom: 10px;">☁️</div>
-          <strong>Dateien hier ablegen oder klicken</strong>
-          <div style="font-size: 0.8em; color: #666; margin-top: 5px;">Optimiert für große Dateien & WLAN</div>
+          <div style="font-size: 30px; margin-bottom: 5px;">📤</div>
+          <div>Hier klicken zum Auswählen</div>
         </div>
         <input type="file" id="fileInput" multiple hidden>
         
@@ -195,64 +202,84 @@
   </div>
 </div>
 
-<!-- PIN Auth Modal (Receiver) -->
+<!-- PIN Receiver Modal -->
 <div id="authModalReceiver" class="modal-overlay hidden">
   <div class="modal">
-    <h3>🔒 Sicherheits-Check</h3>
-    <p>Jemand möchte sich verbinden. Gib ihm diesen PIN:</p>
+    <h3>🔒 PIN Code</h3>
+    <p>Verbindung von <span id="incomingName" style="font-weight:bold">...</span></p>
     <div id="pinDisplay" class="pin-display">----</div>
-    <p style="font-size: 0.9em; color: #666;">Verbindung wird nach Eingabe automatisch akzeptiert.</p>
+    <p style="font-size: 0.85em; color: #666;">Zeige diesen Code dem Sender.</p>
     <button class="btn btn-danger" onclick="rejectConnection()" style="margin-top: 15px;">Ablehnen</button>
   </div>
 </div>
 
-<!-- PIN Auth Modal (Sender) -->
+<!-- PIN Sender Modal -->
 <div id="authModalSender" class="modal-overlay hidden">
   <div class="modal">
     <h3>🔒 PIN Eingabe</h3>
-    <p>Bitte gib den PIN ein, der auf dem anderen Gerät angezeigt wird:</p>
-    <input type="text" id="pinInput" placeholder="PIN eingeben" style="text-align: center; font-size: 20px; letter-spacing: 2px;">
-    <button class="btn btn-success" onclick="submitPin()">Bestätigen</button>
-    <button class="btn btn-danger" onclick="cancelAuth()" style="margin-top: 10px; background: #fff; color: #ef4444; border: 1px solid #ef4444;">Abbrechen</button>
+    <p style="margin-bottom:15px">Gib den Code vom Empfänger ein:</p>
+    
+    <input type="tel" id="pinInput" placeholder="0000" maxlength="4" 
+           style="text-align: center; font-size: 24px; letter-spacing: 5px; font-weight: bold;"
+           onkeypress="handleEnter(event, submitPin)">
+           
+    <button class="btn btn-success" onclick="submitPin()" style="margin-bottom: 10px;">Verbinden</button>
+    <button class="btn" onclick="cancelAuth()" style="background: transparent; color: #666; border: 1px solid #ddd;">Abbrechen</button>
   </div>
 </div>
 
 <script>
-  let peer, conn;
-  let myId = '';
+  // --- Config & State ---
+  const PREFIX = 'sft-pro-v2-';
+  let peer, conn, myName;
   let pendingConn = null;
   let currentPin = '';
-  let receivedFiles = []; // History of files
+  let receivedFiles = []; 
+  let recentDevices = JSON.parse(localStorage.getItem('sft_recents') || '[]');
 
-  // --- Initialization ---
+  // --- Helpers ---
+  function handleEnter(e, func) {
+    if (e.key === 'Enter') func();
+  }
+  
+  function updateStatus(cls, msg) {
+    const el = document.getElementById('statusBox');
+    el.className = 'status-bar status-' + cls;
+    el.textContent = msg;
+  }
+
+  // --- Main Logic ---
   function initPeer() {
-    const customName = document.getElementById('myCustomId').value.trim().replace(/[^a-zA-Z0-9-]/g, '');
-    if (customName.length < 3) {
-      alert('Bitte mindestens 3 Zeichen (nur Buchstaben, Zahlen, Bindestrich).');
+    myName = document.getElementById('myCustomId').value.trim().replace(/[^a-zA-Z0-9-]/g, '');
+    if (myName.length < 2) {
+      alert('Name zu kurz (min 2 Zeichen)');
       return;
     }
 
-    // Prefix to avoid global conflicts
-    myId = 'sft-pro-' + customName;
-    
-    peer = new Peer(myId, { debug: 1 });
+    const fullId = PREFIX + myName;
+    peer = new Peer(fullId);
 
     peer.on('open', (id) => {
       document.getElementById('setupPanel').classList.add('hidden');
       document.getElementById('appPanel').classList.remove('hidden');
-      document.getElementById('displayId').textContent = customName; // Show friendly name
-      updateStatus('online', '✅ Bereit als: ' + customName);
+      document.getElementById('displayId').textContent = myName;
+      updateStatus('online', '✅ Bereit als: ' + myName);
+      loadRecents();
     });
 
     peer.on('connection', (c) => {
-      // Incoming connection (Receiver side)
       pendingConn = c;
-      handleIncomingConnection();
+      // Fix: Check if already open or wait for open
+      if (pendingConn.open) {
+        startReceiverAuth();
+      } else {
+        pendingConn.on('open', () => startReceiverAuth());
+      }
     });
 
     peer.on('error', (err) => {
       if (err.type === 'unavailable-id') {
-        alert('Name bereits vergeben! Bitte anderen wählen.');
+        alert('Dieser Name ist schon belegt. Wähle einen anderen.');
         location.reload();
       } else {
         updateStatus('offline', '❌ Fehler: ' + err.type);
@@ -260,48 +287,60 @@
     });
   }
 
-  // --- Auth Flow ---
-  function handleIncomingConnection() {
-    // Generate PIN
+  // --- Receiver Auth ---
+  function startReceiverAuth() {
+    // Generate simple 4 digit PIN
     currentPin = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    // Extract sender name from peer ID if possible
+    let senderName = pendingConn.peer.replace(PREFIX, '');
+    document.getElementById('incomingName').textContent = senderName;
     document.getElementById('pinDisplay').textContent = currentPin;
     document.getElementById('authModalReceiver').classList.remove('hidden');
 
-    pendingConn.on('open', () => {
-      // Wait for PIN from sender
-      pendingConn.on('data', (data) => {
-        if (data.type === 'auth-pin') {
-          if (data.pin === currentPin) {
-            // Success
-            document.getElementById('authModalReceiver').classList.add('hidden');
-            conn = pendingConn;
-            setupActiveConnection();
-            conn.send({ type: 'auth-success' });
-            updateStatus('online', '🔒 Verbunden & Verifiziert!');
-          } else {
-            pendingConn.send({ type: 'auth-fail' });
-            setTimeout(() => pendingConn.close(), 1000);
-            updateStatus('offline', '❌ Falscher PIN');
-            document.getElementById('authModalReceiver').classList.add('hidden');
-          }
+    // Listen for PIN
+    pendingConn.on('data', (data) => {
+      if (data.type === 'auth-pin') {
+        if (data.pin === currentPin) {
+          // Success
+          document.getElementById('authModalReceiver').classList.add('hidden');
+          conn = pendingConn;
+          setupActiveConnection();
+          conn.send({ type: 'auth-success' });
+          updateStatus('online', '🔒 Verbunden mit ' + senderName);
+        } else {
+          // Fail
+          pendingConn.send({ type: 'auth-fail' });
+          setTimeout(() => pendingConn.close(), 500);
+          document.getElementById('authModalReceiver').classList.add('hidden');
+          alert('Falscher PIN eingegeben!');
         }
-      });
+      }
     });
   }
 
-  function connectToPeer() {
-    const targetName = document.getElementById('targetIdInput').value.trim();
+  // --- Sender Auth ---
+  function connectToPeer(targetNameOverride) {
+    let targetName = targetNameOverride || document.getElementById('targetIdInput').value.trim();
+    if (typeof targetName !== 'string') targetName = document.getElementById('targetIdInput').value.trim(); // handle event arg
+    
     if (!targetName) return;
 
-    const fullTargetId = 'sft-pro-' + targetName;
-    updateStatus('connecting', '⏳ Verbinde zu ' + targetName + '...');
+    updateStatus('connecting', '⏳ Suche ' + targetName + '...');
+    const fullTargetId = PREFIX + targetName;
     
     const c = peer.connect(fullTargetId);
     
     c.on('open', () => {
-      // Connection open, ask user for PIN
-      document.getElementById('authModalSender').classList.remove('hidden');
       pendingConn = c;
+      document.getElementById('authModalSender').classList.remove('hidden');
+      
+      // Better Input Handling for Mobile
+      setTimeout(() => {
+        const input = document.getElementById('pinInput');
+        input.value = '';
+        input.focus();
+      }, 100);
     });
 
     c.on('data', (data) => {
@@ -310,23 +349,47 @@
         conn = pendingConn;
         setupActiveConnection();
         updateStatus('online', '🔒 Verbunden mit ' + targetName);
+        addToRecents(targetName);
       } else if (data.type === 'auth-fail') {
-        alert('Falscher PIN!');
+        alert('Falscher PIN! Verbindung abgelehnt.');
         document.getElementById('authModalSender').classList.add('hidden');
         updateStatus('offline', '❌ Authentifizierung fehlgeschlagen');
       }
     });
-    
+
     c.on('error', (err) => {
-      updateStatus('offline', '❌ Gerät nicht gefunden');
+      updateStatus('offline', '❌ ' + targetName + ' nicht gefunden');
     });
+    
+    // Timeout fallback if connection hangs
+    setTimeout(() => {
+      if (!conn && !document.getElementById('authModalSender').classList.contains('hidden') && !pendingConn.open) {
+         updateStatus('offline', '❌ Zeitüberschreitung');
+      }
+    }, 10000);
   }
 
   function submitPin() {
     const pin = document.getElementById('pinInput').value;
-    if (pendingConn) {
+    if (!pin || pin.length < 4) return;
+    
+    if (pendingConn && pendingConn.open) {
       pendingConn.send({ type: 'auth-pin', pin: pin });
+      // UI Feedback
+      const btn = document.querySelector('#authModalSender .btn-success');
+      const originalText = btn.textContent;
+      btn.textContent = 'Prüfe...';
+      setTimeout(() => btn.textContent = originalText, 2000);
+    } else {
+      alert('Verbindung verloren. Bitte neu versuchen.');
+      cancelAuth();
     }
+  }
+
+  function cancelAuth() {
+    if (pendingConn) pendingConn.close();
+    document.getElementById('authModalSender').classList.add('hidden');
+    updateStatus('online', 'Bereit');
   }
 
   function rejectConnection() {
@@ -334,126 +397,116 @@
     document.getElementById('authModalReceiver').classList.add('hidden');
   }
 
-  // --- File Transfer Logic ---
+  // --- Active Session ---
   function setupActiveConnection() {
-    // Handling incoming files
     conn.on('data', (data) => {
-      if (data.type === 'file-meta') {
-        // Start of file
-        // We handle plain blobs in PeerJS mostly automatically if just sent
-        // But for structure we receive an object
-      } else if (data.fileName && data.fileBlob) {
-        // Received a file object
+      if (data.fileName && data.fileBlob) {
         handleReceivedFile(data);
       }
     });
 
     conn.on('close', () => {
-      updateStatus('offline', '⚠️ Verbindung getrennt');
+      updateStatus('offline', '⚠️ Partner getrennt');
       conn = null;
     });
   }
 
   function handleReceivedFile(fileData) {
-    // 1. Rename logic (Versioning)
     let finalName = fileData.fileName;
     let counter = 1;
     
-    // Check duplication against receivedFiles history
+    // Intelligent renaming: name.jpg -> name (1).jpg
     while (receivedFiles.some(f => f.name === finalName)) {
-      const parts = fileData.fileName.split('.');
-      const ext = parts.length > 1 ? parts.pop() : '';
-      const base = parts.join('.');
-      finalName = `${base} (${counter}).${ext}`;
+      const lastDot = fileData.fileName.lastIndexOf('.');
+      if (lastDot !== -1) {
+        const name = fileData.fileName.substring(0, lastDot);
+        const ext = fileData.fileName.substring(lastDot);
+        finalName = `${name} (${counter})${ext}`;
+      } else {
+        finalName = `${fileData.fileName} (${counter})`;
+      }
       counter++;
     }
 
-    // 2. Create Blob URL
     const blob = new Blob([fileData.fileBlob], { type: fileData.fileType });
     const url = URL.createObjectURL(blob);
-    
     const fileObj = { name: finalName, size: fileData.fileSize, url: url };
-    receivedFiles.push(fileObj); // Append to history
     
-    addFileToUI(fileObj, true); // true = incoming
+    receivedFiles.push(fileObj);
+    addFileToUI(fileObj, true);
   }
 
-  // --- Upload Handling ---
+  // --- Upload ---
   const fileInput = document.getElementById('fileInput');
   const dropZone = document.getElementById('dropZone');
 
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
   dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault(); dropZone.classList.remove('dragover');
-    processFiles(e.dataTransfer.files);
-  });
-
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); processFiles(e.dataTransfer.files); });
   fileInput.addEventListener('change', (e) => processFiles(e.target.files));
 
   function processFiles(files) {
     if (!conn) {
-      alert('Bitte erst verbinden!');
+      alert('Keine Verbindung! Erst verbinden.');
       return;
     }
 
     Array.from(files).forEach(file => {
-      // Direct Blob Transfer (High Performance)
-      // We wrap it to keep metadata attached
-      const reader = new FileReader();
-      // PeerJS can send Blobs directly, but we want metadata.
-      // Easiest way for small-medium files is ArrayBuffer. 
-      // For HUGE files, we'd use stream, but let's use ArrayBuffer for robustness over Base64.
-      
-      // Optimization: Send metadata first, then raw blob? 
-      // PeerJS serialization handles Blobs well.
-      
-      const payload = {
+      conn.send({
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
-        fileBlob: file // PeerJS BinaryPack will handle this efficiently
-      };
-      
-      conn.send(payload);
-      addFileToUI({ name: file.name, size: file.size, url: null }, false);
+        fileBlob: file
+      });
+      addFileToUI({ name: file.name, size: file.size }, false);
     });
   }
 
-  // --- UI Helpers ---
   function addFileToUI(file, isIncoming) {
     const list = document.getElementById('fileListContainer');
     const div = document.createElement('div');
     div.className = 'file-item';
     
-    const actionBtn = isIncoming 
-      ? `<a href="${file.url}" download="${file.name}" class="btn btn-success" style="width:auto; padding:5px 15px;">⬇️ Speichern</a>`
-      : `<span style="color:var(--success)">✅ Gesendet</span>`;
+    const action = isIncoming 
+      ? `<a href="${file.url}" download="${file.name}" class="btn btn-success" style="width:auto; padding:8px 15px; font-size:0.9em">💾 Laden</a>`
+      : `<span style="color:var(--success); font-weight:bold;">✓</span>`;
 
     div.innerHTML = `
       <div class="file-meta">
-        <span class="file-name">${isIncoming ? '📥 ' : '📤 '}${file.name}</span>
+        <span class="file-name">${isIncoming ? '⬇️' : '⬆️'} ${file.name}</span>
         <span class="file-size">${formatBytes(file.size)}</span>
       </div>
-      <div>${actionBtn}</div>
+      <div>${action}</div>
     `;
-    
-    // Add to top
     list.insertBefore(div, list.firstChild);
   }
 
-  function updateStatus(cls, msg) {
-    const el = document.getElementById('statusBox');
-    el.className = 'status-bar status-' + cls;
-    el.textContent = msg;
+  // --- Utils ---
+  function loadRecents() {
+    const container = document.getElementById('recentPeers');
+    if (recentDevices.length > 0) {
+      container.classList.remove('hidden');
+      container.innerHTML = recentDevices.map(name => 
+        `<span class="recent-chip" onclick="connectToPeer('${name}')">📱 ${name}</span>`
+      ).join('');
+    }
+  }
+
+  function addToRecents(name) {
+    if (!recentDevices.includes(name)) {
+      recentDevices.unshift(name);
+      if (recentDevices.length > 5) recentDevices.pop();
+      localStorage.setItem('sft_recents', JSON.stringify(recentDevices));
+      loadRecents();
+    }
   }
 
   function formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 B';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 </script>
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V12 (Ultra-Secure & Tools)</title>
+    <title>Transfer V13 (Live-Security)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #eef2f5; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; }
@@ -19,25 +19,26 @@
         .status-badge.online { background: #c6f6d5; color: #22543d; }
         .pin-display { font-size: 48px; letter-spacing: 10px; font-weight: 800; text-align: center; background: #edf2f7; padding: 20px; border-radius: 10px; margin: 20px 0; color: #2d3748; }
         
-        /* Tools Section */
-        .tools-box { background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
-        .tool-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; vertical-align: middle; margin-left: 10px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        input:checked + .slider { background-color: #805ad5; }
+        input:checked + .slider:before { transform: translateX(24px); background: white; }
         .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #4299e1; }
-        input:checked + .slider:before { transform: translateX(24px); }
-        
+
         .file-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; margin-top: 5px; border-radius: 8px; border-left: 5px solid #cbd5e0; }
-        .file-encrypted { border-left-color: #f56565; background: #fff5f5; }
-        .file-boosted { border-left-color: #805ad5; background: #faf5ff; }
+        .file-encrypted { border-left-color: #805ad5; background: #faf5ff; }
+
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-box { background: white; padding: 30px; border-radius: 15px; text-align: center; max-width: 90%; width: 400px; }
+        .big-pass { font-size: 32px; background: #eee; padding: 15px; margin: 15px 0; font-family: monospace; letter-spacing: 2px; border-radius: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2>🚀 Transfer V12</h2>
+        <h2>🔐 Live-Transfer V13</h2>
         <div id="statusBadge" class="status-badge">Nicht verbunden</div>
     </div>
 
@@ -76,54 +77,62 @@
     <div id="screenTransfer" class="card hidden">
         <h2 style="text-align:center; color:#48bb78;">✅ Verbunden</h2>
         
-        <!-- Options -->
-        <div class="tools-box">
-            <h4 style="margin:0 0 10px 0;">⚙️ Einstellungen</h4>
-            
-            <div class="tool-row">
-                <span>📉 Bilder komprimieren</span>
-                <label class="switch"><input type="checkbox" id="optCompress" onchange="toggleBoost(false)"><span class="slider"></span></label>
+        <div style="background:#f7fafc; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>🔒 <b>Live-Verschlüsselung</b></span>
+                <label class="switch"><input type="checkbox" id="optEncrypt" checked><span class="slider"></span></label>
             </div>
-            
-            <div class="tool-row">
-                <span>✨ Quality Boost (Schärfen)</span>
-                <label class="switch"><input type="checkbox" id="optBoost" onchange="toggleCompress(false)"><span class="slider"></span></label>
-            </div>
-
-            <div class="tool-row">
-                <span>🔒 Datei-Verschlüsselung</span>
-                <label class="switch"><input type="checkbox" id="optEncrypt" onchange="togglePassInput()"><span class="slider"></span></label>
-            </div>
-            
-            <input type="password" id="filePass" placeholder="Passwort für Dateien" class="hidden" style="margin-top:5px; border-color:#f56565;">
+            <p style="font-size:0.8em; color:#666; margin-top:5px;">
+                Wenn aktiv: Empfänger muss Passwort bei DIR anfragen. 
+                Wenn du offline bist, kann die Datei <b>nie wieder</b> geöffnet werden.
+            </p>
         </div>
 
-        <div style="text-align:center; padding:20px; border:2px dashed #48bb78; background:#f0fff4; border-radius:10px;" onclick="document.getElementById('files').click()">
-            <strong>📂 Dateien wählen</strong> (Mehrere möglich)
+        <div style="text-align:center; padding:20px; border:2px dashed #48bb78; background:#f0fff4; border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
+            <strong>📂 Dateien wählen</strong>
         </div>
         <input type="file" id="files" multiple style="display:none;" onchange="processAndSend()">
 
-        <div id="progress" style="text-align:center; margin-top:10px; color:#666;" class="hidden">Verarbeite...</div>
         <div id="fileList" style="margin-top:20px;"></div>
     </div>
 
+    <!-- MODAL FOR PASSWORD REQUEST (SENDER) -->
+    <div id="modalReq" class="modal hidden">
+        <div class="modal-box">
+            <h3>🔑 Anfrage!</h3>
+            <p>Der Partner will <b id="reqFileName">Datei</b> öffnen.</p>
+            <p>Das Passwort ist:</p>
+            <div id="reqPassDisplay" class="big-pass">...</div>
+            <p style="font-size:0.8em">Sag es ihm oder klicke OK.</p>
+            <button class="green" onclick="approveRequest()">OK (Schließen)</button>
+        </div>
+    </div>
+
+    <!-- MODAL FOR PASSWORD INPUT (RECEIVER) -->
+    <div id="modalInput" class="modal hidden">
+        <div class="modal-box">
+            <h3>🔒 Passwort nötig</h3>
+            <p>Anfrage an Sender läuft...</p>
+            <div id="reqStatus" style="color:#d69e2e; font-weight:bold; margin:10px 0;">Warte auf Sender...</div>
+            <input type="text" id="decryptPass" placeholder="Passwort eingeben" class="hidden">
+            <button id="btnDecrypt" class="green hidden" onclick="confirmDecrypt()">Entschlüsseln</button>
+            <button class="red" onclick="closeModal()" style="margin-top:10px">Abbrechen</button>
+        </div>
+    </div>
+
     <script>
-        // --- CORE (V11) ---
-        const PREFIX = 'sft-v12-ultra-';
+        const PREFIX = 'sft-v13-live-';
         const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
         let peer, conn, myPin, myName;
         
-        // --- TOOLS LOGIC ---
+        // Memory for live keys
+        let activeKeys = {}; // fileName -> password
+        let pendingDecryptName = '';
+        let pendingRawData = null;
+
         function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
         function setStatus(msg, type) { document.getElementById('statusBadge').className = 'status-badge '+type; document.getElementById('statusBadge').innerText = msg; }
         
-        function toggleBoost(state) { if(document.getElementById('optCompress').checked) document.getElementById('optBoost').checked = false; }
-        function toggleCompress(state) { if(document.getElementById('optBoost').checked) document.getElementById('optCompress').checked = false; }
-        function togglePassInput() { 
-            const show = document.getElementById('optEncrypt').checked;
-            document.getElementById('filePass').classList.toggle('hidden', !show);
-        }
-
         // --- 1. START ---
         function startApp() {
             myName = document.getElementById('myName').value;
@@ -160,8 +169,10 @@
             conn.on('open', setupData);
         }
 
+        // --- PROTOCOL ---
         function setupData() {
             conn.on('data', (d) => {
+                // Auth
                 if (d.type === 'AUTH_REQ') {
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
@@ -169,10 +180,37 @@
                 }
                 if (d.type === 'PIN_CHECK') {
                     if (d.pin === myPin) { conn.send({type:'AUTH_OK'}); showTrans(); }
-                    else { conn.send({type:'AUTH_FAIL'}); alert('Falscher PIN'); location.reload(); }
+                    else { conn.send({type:'AUTH_FAIL'}); alert('Falsch'); location.reload(); }
                 }
                 if (d.type === 'AUTH_OK') showTrans();
+
+                // Files
                 if (d.type === 'FILE') receiveFile(d);
+
+                // Live Key Request (SENDER SIDE)
+                if (d.type === 'KEY_REQ') {
+                    const pass = activeKeys[d.fileName];
+                    if (pass) {
+                        document.getElementById('modalReq').classList.remove('hidden');
+                        document.getElementById('reqFileName').innerText = d.fileName;
+                        document.getElementById('reqPassDisplay').innerText = pass;
+                        // We do NOT send the pass automatically. We wait for user (as requested).
+                        // Or we can auto send if user approves. 
+                        // The user said: "Sender displays password".
+                    } else {
+                        // Key lost?
+                        conn.send({ type: 'KEY_DENY', reason: 'Unbekannte Datei oder abgelaufen' });
+                    }
+                }
+            });
+
+            conn.on('close', () => {
+                setStatus('Partner offline', 'offline');
+                // If receiver is waiting for key, fail
+                if (!document.getElementById('modalInput').classList.contains('hidden')) {
+                     document.getElementById('reqStatus').innerText = "❌ Sender ist offline! Entschlüsselung unmöglich.";
+                     document.getElementById('reqStatus').style.color = 'red';
+                }
             });
         }
 
@@ -183,64 +221,24 @@
             setStatus('Verbunden', 'online');
         }
 
-        // --- 5. PROCESSING & SENDING ---
+        // --- 5. SENDING ---
         async function processAndSend() {
             const files = document.getElementById('files').files;
-            const compress = document.getElementById('optCompress').checked;
-            const boost = document.getElementById('optBoost').checked;
             const encrypt = document.getElementById('optEncrypt').checked;
-            const pass = document.getElementById('filePass').value;
-
-            if (encrypt && !pass) return alert("Bitte Passwort für Verschlüsselung eingeben!");
-
-            document.getElementById('progress').classList.remove('hidden');
 
             for (let f of files) {
-                let blob = f;
-                let fileName = f.name;
-
-                // 1. IMAGE PROCESSING
-                if (f.type.startsWith('image/')) {
-                    if (compress || boost) {
-                        try {
-                            const bitmap = await createImageBitmap(f);
-                            const canvas = document.createElement('canvas');
-                            canvas.width = bitmap.width;
-                            canvas.height = bitmap.height;
-                            const ctx = canvas.getContext('2d');
-                            
-                            if (boost) {
-                                // Sharpening Filter Logic
-                                canvas.width = bitmap.width; // Keep Original Size
-                                canvas.height = bitmap.height;
-                                ctx.filter = 'contrast(1.1) saturate(1.1)'; // Boost colors
-                                ctx.drawImage(bitmap, 0, 0);
-                                // Overlay sharpening (High Pass simulation) - simplified for performance
-                                // We rely on PNG export for quality
-                                blob = await new Promise(r => canvas.toBlob(r, 'image/png')); 
-                            } else {
-                                // Compression
-                                ctx.drawImage(bitmap, 0, 0);
-                                blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.6)); // 60% quality
-                            }
-                        } catch (e) { console.error(e); }
-                    }
-                }
-
-                // 2. ENCRYPTION
+                let buffer = await f.arrayBuffer();
                 let isEncrypted = false;
-                let buffer = await blob.arrayBuffer();
-                
+
                 if (encrypt) {
+                    // Generate One-Time Password
+                    const pass = Math.random().toString(36).slice(-8).toUpperCase();
+                    activeKeys[f.name] = pass; // Store in memory
+                    
                     const key = await getKey(pass);
                     const iv = crypto.getRandomValues(new Uint8Array(12));
-                    const encryptedContent = await crypto.subtle.encrypt(
-                        { name: "AES-GCM", iv: iv },
-                        key,
-                        buffer
-                    );
+                    const encryptedContent = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, buffer);
                     
-                    // Pack IV + Content
                     const combined = new Uint8Array(iv.length + encryptedContent.byteLength);
                     combined.set(iv);
                     combined.set(new Uint8Array(encryptedContent), iv.length);
@@ -248,42 +246,33 @@
                     isEncrypted = true;
                 }
 
-                // 3. SEND
                 conn.send({
                     type: 'FILE',
-                    name: fileName,
-                    mime: isEncrypted ? 'application/octet-stream' : blob.type,
+                    name: f.name,
+                    mime: isEncrypted ? 'application/octet-stream' : f.type,
                     data: buffer,
-                    encrypted: isEncrypted,
-                    boosted: boost
+                    encrypted: isEncrypted
                 });
             }
-            document.getElementById('progress').classList.add('hidden');
             alert("Gesendet!");
         }
 
         async function getKey(password) {
             const enc = new TextEncoder();
-            const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-            return crypto.subtle.deriveKey(
-                { name: "PBKDF2", salt: enc.encode("sft-salt"), iterations: 100000, hash: "SHA-256" },
-                keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
-            );
+            const k = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+            return crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("salt"), iterations: 100000, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
         }
 
-        // --- 6. RECEIVING ---
-        async function receiveFile(d) {
+        // --- 6. RECEIVING & REQUESTING KEY ---
+        function receiveFile(d) {
             const div = document.createElement('div');
-            div.className = d.encrypted ? 'file-item file-encrypted' : (d.boosted ? 'file-item file-boosted' : 'file-item');
+            div.className = d.encrypted ? 'file-item file-encrypted' : 'file-item';
             
             let btnHtml = '';
-            
             if (d.encrypted) {
-                btnHtml = `<button class="purple" onclick="decryptAndDownload(this, '${d.name}')">🔓 Entschlüsseln</button>`;
-                // Store raw data temporarily on the button element for simplicity
-                div.dataset.raw = JSON.stringify(Array.from(new Uint8Array(d.data))); // Heavy but works for demo
-                // Better: Store in memory array
-                window.tempFiles = window.tempFiles || {};
+                btnHtml = `<button class="purple" onclick="requestUnlock('${d.name}')">🔓 Anfrage senden</button>`;
+                // Store raw data
+                if(!window.tempFiles) window.tempFiles = {};
                 window.tempFiles[d.name] = d.data;
             } else {
                 const blob = new Blob([d.data], {type: d.mime});
@@ -291,42 +280,81 @@
                 btnHtml = `<a href="${url}" download="${d.name}" style="background:#48bb78; color:white; padding:8px 15px; text-decoration:none; border-radius:5px;">💾 Laden</a>`;
             }
 
-            div.innerHTML = `
-                <div>
-                    <strong>${d.name}</strong> ${d.encrypted ? '🔒' : ''} ${d.boosted ? '✨' : ''}<br>
-                    <small>${(d.data.byteLength/1024).toFixed(1)} KB</small>
-                </div>
-                ${btnHtml}
-            `;
+            div.innerHTML = `<div><strong>${d.name}</strong> ${d.encrypted?'🔒':''}<br><small>${(d.data.byteLength/1024).toFixed(1)} KB</small></div>${btnHtml}`;
             document.getElementById('fileList').prepend(div);
         }
 
-        async function decryptAndDownload(btn, name) {
-            const pass = prompt("Datei ist verschlüsselt! Passwort eingeben:");
-            if (!pass) return;
+        // --- LIVE KEY RETRIEVAL FLOW ---
+        function requestUnlock(name) {
+            if (!conn || !conn.open) return alert("Fehler: Sender ist offline. Datei kann nicht entschlüsselt werden!");
+            
+            pendingDecryptName = name;
+            
+            // Show UI
+            document.getElementById('modalInput').classList.remove('hidden');
+            document.getElementById('reqStatus').innerText = "⏳ Anfrage an Sender gesendet...";
+            document.getElementById('reqStatus').style.color = '#d69e2e';
+            
+            // Send Request
+            conn.send({ type: 'KEY_REQ', fileName: name });
+        }
 
+        // Sender approves (Just closes modal, Sender tells password manually via voice/chat as requested)
+        function approveRequest() {
+            document.getElementById('modalReq').classList.add('hidden');
+        }
+
+        // Receiver manually enters the password they got from Sender
+        // (Wait... if Sender is offline, they can't get it. This matches requirement.)
+        async function confirmDecrypt() {
+            const pass = document.getElementById('decryptPass').value;
+            if(!pass) return alert("Passwort eingeben!");
+            
             try {
-                const raw = window.tempFiles[name];
+                const raw = window.tempFiles[pendingDecryptName];
                 const iv = raw.slice(0, 12);
                 const data = raw.slice(12);
                 const key = await getKey(pass);
-                
-                const decrypted = await crypto.subtle.decrypt(
-                    { name: "AES-GCM", iv: iv },
-                    key,
-                    data
-                );
+                const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
                 
                 const blob = new Blob([decrypted]);
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = name;
+                a.download = pendingDecryptName;
                 a.click();
+                
+                closeModal();
             } catch (e) {
-                alert("Falsches Passwort oder Fehler!");
+                alert("Falsches Passwort!");
             }
         }
+        
+        // In this logic, the Sender verbally tells the password. 
+        // We need to enable the input field for receiver once request is 'acknowledged' or just always let them type?
+        // Let's make the input field visible immediately so they can type what Sender tells them.
+        // Wait, better: The Sender sees the password. The Receiver sees "Enter Password".
+        
+        // MODIFYING requestUnlock to show input immediately
+        // Redefine requestUnlock
+        window.requestUnlock = function(name) {
+            if (!conn || !conn.open) return alert("Sender ist offline! Datei verloren.");
+            
+            pendingDecryptName = name;
+            conn.send({ type: 'KEY_REQ', fileName: name });
+            
+            document.getElementById('modalInput').classList.remove('hidden');
+            document.getElementById('reqStatus').innerText = "Frage Sender nach Passwort...";
+            // Enable input
+            document.getElementById('decryptPass').classList.remove('hidden');
+            document.getElementById('btnDecrypt').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modalInput').classList.add('hidden');
+            document.getElementById('decryptPass').value = '';
+        }
+
     </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V17 (Bulk & Speed)</title>
+    <title>Transfer V18 (Stable Fix)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #1a202c; color: #e2e8f0; padding: 15px; max-width: 600px; margin: 0 auto; }
@@ -27,12 +27,13 @@
         
         .file-list { max-height: 400px; overflow-y: auto; }
         .file-item { padding: 10px; background: #2d3748; margin-top: 5px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #63b3ed; font-size: 0.9rem; }
+        .error-item { border-left-color: #e53e3e; background: #4a2020; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2 style="margin-bottom:5px;">🚀 V17 High-Performance</h2>
+        <h2 style="margin-bottom:5px;">🛠️ V18 Stable Fix</h2>
         <div id="statusBadge" class="status-badge">Warte auf Start...</div>
     </div>
 
@@ -83,12 +84,11 @@
     </div>
 
     <script>
-        const PREFIX = 'sft-v17-bulk-';
-        const CHUNK_SIZE = 128 * 1024; // 128KB Chunks for Speed
+        const PREFIX = 'sft-v18-fix-';
+        const CHUNK_SIZE = 64 * 1024; // Safer 64KB Chunks
         
         let peer, conn, myPin, sessionKey;
-        let incoming = {}; // Map of fileId -> fileData
-        let isProcessing = false;
+        let incoming = {}; 
         
         function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
         function setStatus(msg, type) { 
@@ -97,13 +97,14 @@
             el.className = 'status-badge ' + (type === 'secure' ? 'secure' : '');
         }
 
-        // --- FAST CRYPTO (AES-CTR) for BULK ---
+        // --- STABLE CRYPTO (AES-GCM) ---
+        // Switched back to GCM because CTR state sync is hard over UDP/WebRTC packet loss
         async function deriveSessionKey(pin, salt) {
             const enc = new TextEncoder();
             const mat = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
             return crypto.subtle.deriveKey(
-                { name: "PBKDF2", salt: enc.encode(salt), iterations: 50000, hash: "SHA-256" }, // Lower iterations for speed
-                mat, { name: "AES-CTR", length: 256 }, true, ["encrypt", "decrypt"]
+                { name: "PBKDF2", salt: enc.encode(salt), iterations: 100000, hash: "SHA-256" },
+                mat, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
             );
         }
 
@@ -123,7 +124,7 @@
             peer.on('connection', (c) => {
                 conn = c;
                 c.on('open', () => {
-                    myPin = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+                    myPin = Math.floor(100000 + Math.random() * 900000).toString();
                     conn.salt = Math.random().toString(36);
                     
                     document.getElementById('screenConnect').classList.add('hidden');
@@ -164,10 +165,9 @@
                     showTrans();
                 }
 
-                // BULK HANDLER
+                // RECEIVE HANDLER
                 if (d.type === 'FILE_START') {
                     incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime };
-                    // UI Update
                     document.getElementById('bulkArea').classList.remove('hidden');
                     document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
                 }
@@ -177,14 +177,12 @@
                     f.buffer.push(d.data);
                     f.received += d.data.byteLength;
                     
-                    // Simple Progress for current file
                     const pct = (f.received / f.total) * 100;
                     document.getElementById('pBar').style.width = pct + '%';
 
                     if (f.received >= f.total) {
                         await finalizeDownload(d.id);
-                        delete incoming[d.id]; // Free RAM immediately
-                        conn.send({ type: 'ACK_FILE', id: d.id }); // Tell sender to send next
+                        delete incoming[d.id]; 
                     }
                 }
             });
@@ -197,7 +195,7 @@
             setStatus('High-Speed Kanal', 'secure');
         }
 
-        // --- BULK SEND LOGIC ---
+        // --- SEND LOGIC ---
         async function startBulkUpload() {
             const files = Array.from(document.getElementById('files').files);
             const total = files.length;
@@ -206,19 +204,16 @@
             document.getElementById('bulkArea').classList.remove('hidden');
             document.getElementById('totalFileCount').innerText = total;
             
-            let sentCount = 0;
-            
-            // Sequential sending to prevent freeze
             for (let i = 0; i < total; i++) {
                 const f = files[i];
                 document.getElementById('currentFileCount').innerText = (i + 1);
                 document.getElementById('currentFileName').innerText = "Verschlüssele: " + f.name;
                 document.getElementById('pBar').style.width = '0%';
 
-                // 1. Encrypt (Fast AES-CTR)
+                // 1. Encrypt Whole File (GCM is safer than CTR for sync)
                 const raw = await f.arrayBuffer();
-                const iv = crypto.getRandomValues(new Uint8Array(16));
-                const encrypted = await crypto.subtle.encrypt({ name: "AES-CTR", counter: iv, length: 64 }, sessionKey, raw);
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, sessionKey, raw);
                 
                 // Pack IV + Data
                 const packed = new Uint8Array(iv.length + encrypted.byteLength);
@@ -227,33 +222,25 @@
 
                 const fileId = Math.random().toString(36).substr(2, 9);
                 
-                // 2. Send Start
                 conn.send({ type: 'FILE_START', id: fileId, name: f.name, size: packed.byteLength, mime: f.type });
 
-                // 3. Send Chunks
                 let offset = 0;
                 while (offset < packed.byteLength) {
                     const chunk = packed.slice(offset, offset + CHUNK_SIZE);
                     conn.send({ type: 'FILE_CHUNK', id: fileId, data: chunk });
                     offset += CHUNK_SIZE;
                     
-                    // UI Update every 5 chunks to save CPU
                     if (offset % (CHUNK_SIZE * 5) === 0) {
                         const pct = (offset / packed.byteLength) * 100;
                         document.getElementById('pBar').style.width = pct + '%';
-                        await new Promise(r => setTimeout(r, 0)); // Yield to UI
+                        await new Promise(r => setTimeout(r, 5)); // Yield
                     }
                 }
-
-                // Wait for ACK before next file? 
-                // For speed, we just wait a tiny bit to not flood buffer. 
-                // Better: PeerJS handles buffer, but for 600 files we need flow control.
-                // Simple flow control: Wait 50ms between files.
-                await new Promise(r => setTimeout(r, 50)); 
-                sentCount++;
+                
+                await new Promise(r => setTimeout(r, 100)); // Gap between files
             }
             
-            document.getElementById('currentFileName').innerText = "Fertig! Alle " + total + " gesendet.";
+            document.getElementById('currentFileName').innerText = "Fertig!";
             document.getElementById('pBar').style.width = '100%';
         }
 
@@ -261,20 +248,16 @@
         async function finalizeDownload(id) {
             const f = incoming[id];
             
-            // Assemble
             const full = new Uint8Array(f.total);
             let off = 0;
             for(let c of f.buffer) { full.set(new Uint8Array(c), off); off+=c.byteLength; }
 
             try {
                 // Decrypt
-                const iv = full.slice(0, 16);
-                const data = full.slice(16);
-                const dec = await crypto.subtle.decrypt({ name: "AES-CTR", counter: iv, length: 64 }, sessionKey, data);
+                const iv = full.slice(0, 12);
+                const data = full.slice(12);
+                const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, sessionKey, data);
                 
-                // Auto-Download or List?
-                // For 600 files, auto-download might crash browser or ask 600 times.
-                // Better: Add to list.
                 const blob = new Blob([dec], {type: f.mime});
                 const url = URL.createObjectURL(blob);
                 
@@ -289,11 +272,15 @@
                 
                 const list = document.getElementById('fileList');
                 list.prepend(div);
-                
-                // Keep list clean (max 50 items visible) to save DOM memory
                 if (list.children.length > 50) list.lastChild.remove();
                 
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error(e); 
+                const div = document.createElement('div');
+                div.className = 'file-item error-item';
+                div.innerHTML = `<div style="color:#fc8181">Fehler: ${f.name}</div>`;
+                document.getElementById('fileList').prepend(div);
+            }
         }
     </script>
 </body>

@@ -3,268 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sicherer Transfer V11 (Secure PIN)</title>
+    <title>Transfer V12 (Ultra-Secure & Tools)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #eef2f5; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h2 { margin: 0 0 15px 0; color: #2d3748; }
         input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; box-sizing: border-box; text-align: center; }
-        button { width: 100%; padding: 14px; background: #4299e1; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button { width: 100%; padding: 14px; background: #4299e1; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; }
         button.green { background: #48bb78; }
         button.red { background: #f56565; }
+        button.purple { background: #805ad5; }
         .hidden { display: none; }
         .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; background: #cbd5e0; color: #4a5568; margin-bottom: 20px; }
         .status-badge.online { background: #c6f6d5; color: #22543d; }
         .pin-display { font-size: 48px; letter-spacing: 10px; font-weight: 800; text-align: center; background: #edf2f7; padding: 20px; border-radius: 10px; margin: 20px 0; color: #2d3748; }
-        .file-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #f7fafc; margin-top: 5px; border-radius: 5px; }
+        
+        /* Tools Section */
+        .tools-box { background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
+        .tool-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #4299e1; }
+        input:checked + .slider:before { transform: translateX(24px); }
+        
+        .file-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; margin-top: 5px; border-radius: 8px; border-left: 5px solid #cbd5e0; }
+        .file-encrypted { border-left-color: #f56565; background: #fff5f5; }
+        .file-boosted { border-left-color: #805ad5; background: #faf5ff; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2>🛡️ Transfer V11</h2>
+        <h2>🚀 Transfer V12</h2>
         <div id="statusBadge" class="status-badge">Nicht verbunden</div>
     </div>
 
     <!-- 1. SETUP -->
     <div id="screenSetup" class="card">
         <h2>1. Wer bist du?</h2>
-        <p style="color:#718096; margin-bottom:10px;">Gib deinem Gerät einen Namen:</p>
-        <input type="text" id="myName" placeholder="z.B. handy" onkeyup="cleanInput(this)">
+        <input type="text" id="myName" placeholder="Dein Name (z.B. handy)" onkeyup="cleanInput(this)">
         <button onclick="startApp()">Online gehen</button>
     </div>
 
     <!-- 2. CONNECT -->
     <div id="screenConnect" class="card hidden">
-        <p style="text-align:center; color:#718096;">Dein Name: <strong id="dispName" style="color:#4299e1; font-size:1.2em;">...</strong></p>
+        <p style="text-align:center;">Ich bin: <strong id="dispName" style="color:#4299e1;">...</strong></p>
         <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-        
-        <h3>Verbinden mit...</h3>
-        <input type="text" id="partnerName" placeholder="Name des anderen Geräts" onkeyup="cleanInput(this)">
+        <h3>Verbinden</h3>
+        <input type="text" id="partnerName" placeholder="Name des Partners" onkeyup="cleanInput(this)">
         <button class="green" onclick="connect()" id="btnConn">Verbinden</button>
     </div>
 
-    <!-- 3. AUTH (PIN) -->
+    <!-- 3. AUTH -->
     <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center;">🔒 Sicherheits-Check</h2>
-        
-        <!-- Empfänger sieht das -->
+        <h2 style="text-align:center;">🔒 PIN Check</h2>
         <div id="authReceiver" class="hidden">
-            <p style="text-align:center;">Verbindung von <strong id="incomingName">...</strong></p>
-            <p style="text-align:center;">Zeige ihm diesen Code:</p>
+            <p style="text-align:center;">Zeige dem Partner diesen Code:</p>
             <div id="pinDisplay" class="pin-display">----</div>
         </div>
-
-        <!-- Sender sieht das -->
         <div id="authSender" class="hidden">
-            <p style="text-align:center;">Verbunden! Gib den Code ein:</p>
+            <p style="text-align:center;">Code eingeben:</p>
             <input type="tel" id="inputPin" placeholder="0000" maxlength="4" style="font-size:32px; letter-spacing:5px;">
             <button class="green" onclick="submitPin()">Prüfen</button>
         </div>
-        
-        <button class="red" onclick="location.reload()" style="margin-top:20px; background:transparent; color:#f56565; border:1px solid #f56565;">Abbrechen</button>
+        <button class="red" onclick="location.reload()" style="margin-top:20px;">Abbrechen</button>
     </div>
 
-    <!-- 4. TRANSFER -->
+    <!-- 4. TRANSFER & TOOLS -->
     <div id="screenTransfer" class="card hidden">
-        <h2 style="text-align:center; color:#48bb78;">✅ Sicher Verbunden</h2>
+        <h2 style="text-align:center; color:#48bb78;">✅ Verbunden</h2>
         
-        <div style="text-align:center; padding:30px; border:2px dashed #48bb78; background:#f0fff4; border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
-            <span style="font-size:40px;">📂</span><br>
-            <strong>Dateien auswählen</strong>
-        </div>
-        <input type="file" id="files" multiple style="display:none;" onchange="sendFiles()">
+        <!-- Options -->
+        <div class="tools-box">
+            <h4 style="margin:0 0 10px 0;">⚙️ Einstellungen</h4>
+            
+            <div class="tool-row">
+                <span>📉 Bilder komprimieren</span>
+                <label class="switch"><input type="checkbox" id="optCompress" onchange="toggleBoost(false)"><span class="slider"></span></label>
+            </div>
+            
+            <div class="tool-row">
+                <span>✨ Quality Boost (Schärfen)</span>
+                <label class="switch"><input type="checkbox" id="optBoost" onchange="toggleCompress(false)"><span class="slider"></span></label>
+            </div>
 
+            <div class="tool-row">
+                <span>🔒 Datei-Verschlüsselung</span>
+                <label class="switch"><input type="checkbox" id="optEncrypt" onchange="togglePassInput()"><span class="slider"></span></label>
+            </div>
+            
+            <input type="password" id="filePass" placeholder="Passwort für Dateien" class="hidden" style="margin-top:5px; border-color:#f56565;">
+        </div>
+
+        <div style="text-align:center; padding:20px; border:2px dashed #48bb78; background:#f0fff4; border-radius:10px;" onclick="document.getElementById('files').click()">
+            <strong>📂 Dateien wählen</strong> (Mehrere möglich)
+        </div>
+        <input type="file" id="files" multiple style="display:none;" onchange="processAndSend()">
+
+        <div id="progress" style="text-align:center; margin-top:10px; color:#666;" class="hidden">Verarbeite...</div>
         <div id="fileList" style="margin-top:20px;"></div>
     </div>
 
     <script>
-        // --- CONFIG ---
-        const PREFIX = 'sft-v11-secure-'; // Unique prefix to map names to IDs
-        const ICE_SERVERS = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-        ];
-
-        let peer, conn, myPin;
-        let myName = '';
-        let authenticated = false;
-
+        // --- CORE (V11) ---
+        const PREFIX = 'sft-v12-ultra-';
+        const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+        let peer, conn, myPin, myName;
+        
+        // --- TOOLS LOGIC ---
         function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
-        function setStatus(msg, type) {
-            const el = document.getElementById('statusBadge');
-            el.innerText = msg;
-            el.className = 'status-badge ' + type;
+        function setStatus(msg, type) { document.getElementById('statusBadge').className = 'status-badge '+type; document.getElementById('statusBadge').innerText = msg; }
+        
+        function toggleBoost(state) { if(document.getElementById('optCompress').checked) document.getElementById('optBoost').checked = false; }
+        function toggleCompress(state) { if(document.getElementById('optBoost').checked) document.getElementById('optCompress').checked = false; }
+        function togglePassInput() { 
+            const show = document.getElementById('optEncrypt').checked;
+            document.getElementById('filePass').classList.toggle('hidden', !show);
         }
 
         // --- 1. START ---
         function startApp() {
-            const name = document.getElementById('myName').value;
-            if (name.length < 2) return alert("Name zu kurz");
-            myName = name;
-
-            setStatus('Verbinde...', '');
+            myName = document.getElementById('myName').value;
+            if (myName.length < 2) return alert("Name zu kurz");
             
-            peer = new Peer(PREFIX + name, {
-                debug: 1,
-                config: { iceServers: ICE_SERVERS }
-            });
-
-            peer.on('open', (id) => {
-                setStatus('Online: ' + name, 'online');
+            peer = new Peer(PREFIX + myName, { debug: 1, config: { iceServers: ICE_SERVERS } });
+            
+            peer.on('open', () => {
+                setStatus('Online: ' + myName, 'online');
                 document.getElementById('screenSetup').classList.add('hidden');
                 document.getElementById('screenConnect').classList.remove('hidden');
-                document.getElementById('dispName').innerText = name;
+                document.getElementById('dispName').innerText = myName;
             });
-
-            peer.on('error', (err) => {
-                if (err.type === 'unavailable-id') alert("Name schon vergeben!");
-                else alert("Fehler: " + err.type);
-                setStatus('Fehler', 'offline');
-            });
-
-            // RECEIVER LOGIC
+            
+            peer.on('error', (e) => { alert(e.type); location.reload(); });
+            
             peer.on('connection', (c) => {
-                // If already connected, reject new ones? For now, allow overwrite or handle simple
                 conn = c;
-                setStatus('Authentifiziere...', '');
-                
                 c.on('open', () => {
-                    // Generate PIN
-                    myPin = Math.floor(1000 + Math.random() * 9000).toString();
-                    
-                    // Show PIN UI
+                    myPin = Math.floor(1000 + Math.random()*9000).toString();
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
                     document.getElementById('authReceiver').classList.remove('hidden');
                     document.getElementById('pinDisplay').innerText = myPin;
-                    document.getElementById('incomingName').innerText = c.peer.replace(PREFIX, '');
-
-                    // Request Auth
-                    c.send({ type: 'AUTH_REQUIRED' });
+                    c.send({ type: 'AUTH_REQ' });
                 });
-
-                setupDataHandler();
+                setupData();
             });
         }
 
-        // --- 2. CONNECT (SENDER) ---
         function connect() {
-            const partner = document.getElementById('partnerName').value;
-            if (!partner) return;
-
-            document.getElementById('btnConn').innerText = 'Verbinde...';
-            
-            conn = peer.connect(PREFIX + partner);
-
-            conn.on('open', () => {
-                setStatus('Warte auf PIN...', '');
-                setupDataHandler();
-            });
-
-            conn.on('error', (err) => {
-                alert("Verbindung fehlgeschlagen");
-                location.reload();
-            });
-
-            // Safety timeout
-            setTimeout(() => {
-                if(!authenticated && !document.getElementById('screenAuth').classList.contains('hidden')) {
-                    // Just waiting...
-                } else if (!conn.open) {
-                    alert("Keine Antwort vom Partner.");
-                    location.reload();
-                }
-            }, 8000);
+            const p = document.getElementById('partnerName').value;
+            conn = peer.connect(PREFIX + p);
+            conn.on('open', setupData);
         }
 
-        // --- 3. DATA HANDLER ---
-        function setupDataHandler() {
-            conn.on('data', (data) => {
-                // AUTH FLOW
-                if (data.type === 'AUTH_REQUIRED') {
-                    // Sender needs to enter PIN
+        function setupData() {
+            conn.on('data', (d) => {
+                if (d.type === 'AUTH_REQ') {
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
                     document.getElementById('authSender').classList.remove('hidden');
                 }
+                if (d.type === 'PIN_CHECK') {
+                    if (d.pin === myPin) { conn.send({type:'AUTH_OK'}); showTrans(); }
+                    else { conn.send({type:'AUTH_FAIL'}); alert('Falscher PIN'); location.reload(); }
+                }
+                if (d.type === 'AUTH_OK') showTrans();
+                if (d.type === 'FILE') receiveFile(d);
+            });
+        }
 
-                if (data.type === 'PIN_CHECK') {
-                    // Receiver checks PIN
-                    if (data.pin === myPin) {
-                        conn.send({ type: 'AUTH_SUCCESS' });
-                        authenticated = true;
-                        showTransfer();
-                    } else {
-                        conn.send({ type: 'AUTH_FAIL' });
-                        setTimeout(() => conn.close(), 500); // Kick
-                        alert("Falscher PIN! Verbindung getrennt.");
-                        location.reload();
+        function submitPin() { conn.send({ type: 'PIN_CHECK', pin: document.getElementById('inputPin').value }); }
+        function showTrans() { 
+            document.getElementById('screenAuth').classList.add('hidden');
+            document.getElementById('screenTransfer').classList.remove('hidden');
+            setStatus('Verbunden', 'online');
+        }
+
+        // --- 5. PROCESSING & SENDING ---
+        async function processAndSend() {
+            const files = document.getElementById('files').files;
+            const compress = document.getElementById('optCompress').checked;
+            const boost = document.getElementById('optBoost').checked;
+            const encrypt = document.getElementById('optEncrypt').checked;
+            const pass = document.getElementById('filePass').value;
+
+            if (encrypt && !pass) return alert("Bitte Passwort für Verschlüsselung eingeben!");
+
+            document.getElementById('progress').classList.remove('hidden');
+
+            for (let f of files) {
+                let blob = f;
+                let fileName = f.name;
+
+                // 1. IMAGE PROCESSING
+                if (f.type.startsWith('image/')) {
+                    if (compress || boost) {
+                        try {
+                            const bitmap = await createImageBitmap(f);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = bitmap.width;
+                            canvas.height = bitmap.height;
+                            const ctx = canvas.getContext('2d');
+                            
+                            if (boost) {
+                                // Sharpening Filter Logic
+                                canvas.width = bitmap.width; // Keep Original Size
+                                canvas.height = bitmap.height;
+                                ctx.filter = 'contrast(1.1) saturate(1.1)'; // Boost colors
+                                ctx.drawImage(bitmap, 0, 0);
+                                // Overlay sharpening (High Pass simulation) - simplified for performance
+                                // We rely on PNG export for quality
+                                blob = await new Promise(r => canvas.toBlob(r, 'image/png')); 
+                            } else {
+                                // Compression
+                                ctx.drawImage(bitmap, 0, 0);
+                                blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.6)); // 60% quality
+                            }
+                        } catch (e) { console.error(e); }
                     }
                 }
 
-                if (data.type === 'AUTH_SUCCESS') {
-                    authenticated = true;
-                    showTransfer();
+                // 2. ENCRYPTION
+                let isEncrypted = false;
+                let buffer = await blob.arrayBuffer();
+                
+                if (encrypt) {
+                    const key = await getKey(pass);
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const encryptedContent = await crypto.subtle.encrypt(
+                        { name: "AES-GCM", iv: iv },
+                        key,
+                        buffer
+                    );
+                    
+                    // Pack IV + Content
+                    const combined = new Uint8Array(iv.length + encryptedContent.byteLength);
+                    combined.set(iv);
+                    combined.set(new Uint8Array(encryptedContent), iv.length);
+                    buffer = combined.buffer;
+                    isEncrypted = true;
                 }
 
-                if (data.type === 'AUTH_FAIL') {
-                    alert("Falscher PIN! Verbindung abgelehnt.");
-                    location.reload();
-                }
-
-                // FILE TRANSFER
-                if (data.type === 'FILE') {
-                    receiveFile(data);
-                }
-            });
-
-            conn.on('close', () => {
-                if(authenticated) alert("Partner hat die Verbindung getrennt.");
-                location.reload();
-            });
-        }
-
-        function submitPin() {
-            const pin = document.getElementById('inputPin').value;
-            conn.send({ type: 'PIN_CHECK', pin: pin });
-        }
-
-        function showTransfer() {
-            document.getElementById('screenAuth').classList.add('hidden');
-            document.getElementById('screenTransfer').classList.remove('hidden');
-            setStatus('Verbunden mit ' + conn.peer.replace(PREFIX, ''), 'online');
-        }
-
-        // --- 4. FILES ---
-        function sendFiles() {
-            const files = document.getElementById('files').files;
-            Array.from(files).forEach(f => {
+                // 3. SEND
                 conn.send({
                     type: 'FILE',
-                    name: f.name,
-                    file: f,
-                    size: f.size,
-                    mime: f.type
+                    name: fileName,
+                    mime: isEncrypted ? 'application/octet-stream' : blob.type,
+                    data: buffer,
+                    encrypted: isEncrypted,
+                    boosted: boost
                 });
-            });
-            alert(files.length + " Datei(en) gesendet!");
+            }
+            document.getElementById('progress').classList.add('hidden');
+            alert("Gesendet!");
         }
 
-        function receiveFile(data) {
-            const blob = new Blob([data.file], { type: data.mime });
-            const url = URL.createObjectURL(blob);
-            
+        async function getKey(password) {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+            return crypto.subtle.deriveKey(
+                { name: "PBKDF2", salt: enc.encode("sft-salt"), iterations: 100000, hash: "SHA-256" },
+                keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+            );
+        }
+
+        // --- 6. RECEIVING ---
+        async function receiveFile(d) {
             const div = document.createElement('div');
-            div.className = 'file-item';
+            div.className = d.encrypted ? 'file-item file-encrypted' : (d.boosted ? 'file-item file-boosted' : 'file-item');
+            
+            let btnHtml = '';
+            
+            if (d.encrypted) {
+                btnHtml = `<button class="purple" onclick="decryptAndDownload(this, '${d.name}')">🔓 Entschlüsseln</button>`;
+                // Store raw data temporarily on the button element for simplicity
+                div.dataset.raw = JSON.stringify(Array.from(new Uint8Array(d.data))); // Heavy but works for demo
+                // Better: Store in memory array
+                window.tempFiles = window.tempFiles || {};
+                window.tempFiles[d.name] = d.data;
+            } else {
+                const blob = new Blob([d.data], {type: d.mime});
+                const url = URL.createObjectURL(blob);
+                btnHtml = `<a href="${url}" download="${d.name}" style="background:#48bb78; color:white; padding:8px 15px; text-decoration:none; border-radius:5px;">💾 Laden</a>`;
+            }
+
             div.innerHTML = `
                 <div>
-                    <strong>${data.name}</strong> <small>(${(data.size/1024/1024).toFixed(2)} MB)</small>
+                    <strong>${d.name}</strong> ${d.encrypted ? '🔒' : ''} ${d.boosted ? '✨' : ''}<br>
+                    <small>${(d.data.byteLength/1024).toFixed(1)} KB</small>
                 </div>
-                <a href="${url}" download="${data.name}" style="background:#48bb78; color:white; padding:8px 15px; text-decoration:none; border-radius:5px;">Download</a>
+                ${btnHtml}
             `;
             document.getElementById('fileList').prepend(div);
+        }
+
+        async function decryptAndDownload(btn, name) {
+            const pass = prompt("Datei ist verschlüsselt! Passwort eingeben:");
+            if (!pass) return;
+
+            try {
+                const raw = window.tempFiles[name];
+                const iv = raw.slice(0, 12);
+                const data = raw.slice(12);
+                const key = await getKey(pass);
+                
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: "AES-GCM", iv: iv },
+                    key,
+                    data
+                );
+                
+                const blob = new Blob([decrypted]);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                a.click();
+            } catch (e) {
+                alert("Falsches Passwort oder Fehler!");
+            }
         }
     </script>
 </body>

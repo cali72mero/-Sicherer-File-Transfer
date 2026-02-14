@@ -1,513 +1,323 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Sicherer File Transfer - Pro</title>
-  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    :root {
-      --primary: #667eea;
-      --secondary: #764ba2;
-      --success: #10b981;
-      --danger: #ef4444;
-      --bg: #f3f4f6;
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    
-    body {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      min-height: 100vh;
-      padding: 15px;
-      color: #333;
-    }
-
-    .container { max-width: 800px; margin: 0 auto; }
-    
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 15px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-
-    h1 { color: var(--primary); text-align: center; margin-bottom: 5px; font-size: 1.5rem; }
-    .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 0.9em; }
-
-    /* Custom ID Section */
-    .id-setup {
-      background: #f8fafc;
-      padding: 20px;
-      border-radius: 12px;
-      border: 2px solid #e2e8f0;
-      text-align: center;
-    }
-
-    /* Recent Peers List */
-    .recent-list {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-    .recent-chip {
-      background: #e0e7ff;
-      color: #4338ca;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 0.85em;
-      cursor: pointer;
-      border: 1px solid #c7d2fe;
-    }
-    .recent-chip:hover { background: #c7d2fe; }
-
-    /* Status Bar */
-    .status-bar {
-      padding: 12px;
-      border-radius: 8px;
-      text-align: center;
-      font-weight: 600;
-      margin-bottom: 15px;
-      font-size: 0.9rem;
-    }
-    .status-offline { background: #fee2e2; color: #991b1b; }
-    .status-connecting { background: #fef3c7; color: #92400e; }
-    .status-online { background: #d1fae5; color: #065f46; }
-
-    /* Inputs & Buttons */
-    input[type="text"], input[type="password"] {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid #e5e7eb;
-      border-radius: 8px;
-      font-size: 16px; /* Prevents zoom on iOS */
-      margin-bottom: 10px;
-    }
-    input:focus { outline: none; border-color: var(--primary); }
-
-    .btn {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 16px;
-      touch-action: manipulation;
-    }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-success { background: var(--success); color: white; }
-    .btn-danger { background: var(--danger); color: white; }
-    
-    /* Upload Area */
-    .upload-area {
-      border: 2px dashed #cbd5e1;
-      border-radius: 12px;
-      padding: 30px;
-      text-align: center;
-      background: #f8fafc;
-      cursor: pointer;
-    }
-    
-    /* File List */
-    .file-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px;
-      background: #f8fafc;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      border-left: 4px solid var(--primary);
-    }
-    .file-meta { display: flex; flex-direction: column; overflow: hidden; }
-    .file-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-    .file-size { font-size: 0.8em; color: #666; }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
-      backdrop-filter: blur(2px);
-      display: flex; justify-content: center; align-items: center;
-      z-index: 9999;
-      padding: 20px;
-    }
-    .modal {
-      background: white; padding: 25px; border-radius: 16px;
-      width: 100%; max-width: 350px; text-align: center;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    }
-    .pin-display {
-      font-size: 36px; letter-spacing: 5px; font-weight: bold;
-      color: var(--primary); margin: 20px 0;
-      background: #f3f4f6; padding: 15px; border-radius: 8px;
-      font-family: monospace;
-    }
-
-    .hidden { display: none !important; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sicherer File Transfer - V3 (Stable)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; color: #333; max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h1 { text-align: center; color: #007bff; font-size: 1.5rem; margin-top: 0; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        button.red { background: #dc3545; }
+        .status { padding: 10px; text-align: center; border-radius: 8px; font-weight: bold; margin-bottom: 15px; }
+        .status.green { background: #d4edda; color: #155724; }
+        .status.yellow { background: #fff3cd; color: #856404; }
+        .status.red { background: #f8d7da; color: #721c24; }
+        .hidden { display: none; }
+        .big-pin { font-size: 40px; text-align: center; letter-spacing: 5px; font-weight: bold; background: #eee; padding: 10px; border-radius: 8px; margin: 15px 0; }
+        .file-list div { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .file-list div:last-child { border-bottom: none; }
+        a.download-btn { background: #28a745; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 0.9em; }
+    </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="card">
-    <h1>🚀 Sicherer File Transfer</h1>
-    <p class="subtitle">P2P • Verschlüsselt • V2.1</p>
-    
-    <!-- ID Setup -->
-    <div id="setupPanel" class="id-setup">
-      <h3>👋 Dein Name</h3>
-      <p style="color: #666; margin: 10px 0;">Wie soll dieses Gerät heißen?</p>
-      <input type="text" id="myCustomId" placeholder="z.B. Mein-Handy" maxlength="20" onkeypress="handleEnter(event, initPeer)">
-      <button class="btn btn-primary" onclick="initPeer()">Starten</button>
+<h1>📂 Sicherer File Transfer</h1>
+
+<!-- Status Bar -->
+<div id="statusBar" class="status red">Nicht verbunden</div>
+
+<!-- Step 1: Login -->
+<div id="loginScreen" class="card">
+    <h3>1. Dein Name</h3>
+    <p style="color:#666; font-size:0.9em">Gib diesem Gerät einen einfachen Namen.</p>
+    <input type="text" id="myIdInput" placeholder="z.B. handy, pc, laptop">
+    <button onclick="startApp()">Starten</button>
+</div>
+
+<!-- Step 2: Main Interface -->
+<div id="mainScreen" class="hidden">
+    <div class="card">
+        <h3>👤 Ich bin: <span id="myIdDisplay" style="color:#007bff">...</span></h3>
+        <p style="font-size:0.8em; color:#666">Serrver-Status: <span id="peerServerStatus">Warte...</span></p>
     </div>
 
-    <!-- Main App -->
-    <div id="appPanel" class="hidden">
-      <div id="statusBox" class="status-bar status-offline">Offline</div>
-      
-      <!-- Connection Panel -->
-      <div class="card" style="border: 1px solid #e5e7eb;">
-        <h3>🔗 Verbindung herstellen</h3>
-        <p style="font-size: 0.9em; color: #666; margin: 10px 0;">Name des anderen Geräts:</p>
-        
-        <input type="text" id="targetIdInput" placeholder="z.B. Dein-PC" onkeypress="handleEnter(event, connectToPeer)">
-        <button class="btn btn-primary" onclick="connectToPeer()">Verbinden</button>
-        
-        <!-- Recent Devices -->
-        <div id="recentPeers" class="recent-list hidden">
-          <!-- Filled by JS -->
-        </div>
-
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; font-size: 0.9em;">
-          Dein Name: <strong id="displayId" style="color: var(--primary);">...</strong>
-        </div>
-      </div>
-
-      <!-- Upload Panel -->
-      <div class="card">
-        <h3>📂 Dateien</h3>
-        <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
-          <div style="font-size: 30px; margin-bottom: 5px;">📤</div>
-          <div>Hier klicken zum Auswählen</div>
-        </div>
-        <input type="file" id="fileInput" multiple hidden>
-        
-        <div id="fileListContainer" style="margin-top: 20px;"></div>
-      </div>
+    <!-- Connect Box -->
+    <div id="connectBox" class="card">
+        <h3>🔗 Mit anderem Gerät verbinden</h3>
+        <input type="text" id="targetIdInput" placeholder="Name des anderen Geräts">
+        <button onclick="initiateConnection()">Verbinden</button>
     </div>
-  </div>
+
+    <!-- File Upload (Visible only when connected) -->
+    <div id="uploadBox" class="card hidden">
+        <h3>📤 Datei senden</h3>
+        <input type="file" id="fileInput" multiple>
+        <button onclick="uploadFiles()" style="background: #28a745;">Senden</button>
+        <div id="transferProgress" style="margin-top:10px; font-size:0.9em; color:#666;"></div>
+    </div>
+
+    <!-- File List -->
+    <div id="filesBox" class="card hidden">
+        <h3>📥 Empfangene Dateien</h3>
+        <div id="fileList" class="file-list"></div>
+    </div>
 </div>
 
 <!-- PIN Receiver Modal -->
-<div id="authModalReceiver" class="modal-overlay hidden">
-  <div class="modal">
-    <h3>🔒 PIN Code</h3>
-    <p>Verbindung von <span id="incomingName" style="font-weight:bold">...</span></p>
-    <div id="pinDisplay" class="pin-display">----</div>
-    <p style="font-size: 0.85em; color: #666;">Zeige diesen Code dem Sender.</p>
-    <button class="btn btn-danger" onclick="rejectConnection()" style="margin-top: 15px;">Ablehnen</button>
-  </div>
+<div id="pinReceiverModal" class="card hidden" style="border: 2px solid #007bff; background: #f8f9fa;">
+    <h3 style="text-align:center">🔒 Verbindungsanfrage</h3>
+    <p style="text-align:center">Jemand will sich verbinden. Gib ihm diesen Code:</p>
+    <div id="displayPin" class="big-pin">----</div>
+    <p style="text-align:center; font-size:0.8em">Warte auf Eingabe...</p>
 </div>
 
 <!-- PIN Sender Modal -->
-<div id="authModalSender" class="modal-overlay hidden">
-  <div class="modal">
-    <h3>🔒 PIN Eingabe</h3>
-    <p style="margin-bottom:15px">Gib den Code vom Empfänger ein:</p>
-    
-    <input type="tel" id="pinInput" placeholder="0000" maxlength="4" 
-           style="text-align: center; font-size: 24px; letter-spacing: 5px; font-weight: bold;"
-           onkeypress="handleEnter(event, submitPin)">
-           
-    <button class="btn btn-success" onclick="submitPin()" style="margin-bottom: 10px;">Verbinden</button>
-    <button class="btn" onclick="cancelAuth()" style="background: transparent; color: #666; border: 1px solid #ddd;">Abbrechen</button>
-  </div>
+<div id="pinSenderModal" class="card hidden" style="border: 2px solid #007bff; background: #f8f9fa;">
+    <h3 style="text-align:center">🔒 Sicherheitscode</h3>
+    <p style="text-align:center">Gib den Code ein, der auf dem anderen Gerät steht:</p>
+    <input type="tel" id="enterPin" placeholder="0000" maxlength="4" style="text-align:center; font-size:24px; letter-spacing:5px;">
+    <button onclick="submitPin()">Bestätigen</button>
+    <button class="red" onclick="cancelPin()">Abbrechen</button>
 </div>
 
 <script>
-  // --- Config & State ---
-  const PREFIX = 'sft-pro-v2-';
-  let peer, conn, myName;
-  let pendingConn = null;
-  let currentPin = '';
-  let receivedFiles = []; 
-  let recentDevices = JSON.parse(localStorage.getItem('sft_recents') || '[]');
+    const PREFIX = 'sft-v3-simple-';
+    let peer = null;
+    let conn = null;
+    let myId = '';
+    let tempConn = null;
+    let generatedPin = '';
 
-  // --- Helpers ---
-  function handleEnter(e, func) {
-    if (e.key === 'Enter') func();
-  }
-  
-  function updateStatus(cls, msg) {
-    const el = document.getElementById('statusBox');
-    el.className = 'status-bar status-' + cls;
-    el.textContent = msg;
-  }
+    // --- 1. Startup & Peer Init ---
+    function startApp() {
+        const rawId = document.getElementById('myIdInput').value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (rawId.length < 2) { alert("Name zu kurz!"); return; }
 
-  // --- Main Logic ---
-  function initPeer() {
-    myName = document.getElementById('myCustomId').value.trim().replace(/[^a-zA-Z0-9-]/g, '');
-    if (myName.length < 2) {
-      alert('Name zu kurz (min 2 Zeichen)');
-      return;
+        myId = rawId;
+        const fullId = PREFIX + myId;
+
+        document.getElementById('peerServerStatus').innerText = "Verbinde zu Server...";
+        
+        // Create Peer (using public PeerJS server)
+        peer = new Peer(fullId, {
+            debug: 1,
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            }
+        });
+
+        peer.on('open', (id) => {
+            console.log('My ID:', id);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainScreen').classList.remove('hidden');
+            document.getElementById('myIdDisplay').innerText = myId;
+            document.getElementById('peerServerStatus').innerText = "✅ Online";
+            updateStatus('green', 'Online als ' + myId);
+        });
+
+        peer.on('error', (err) => {
+            console.error(err);
+            if (err.type === 'unavailable-id') {
+                alert("Name '" + myId + "' ist schon belegt. Bitte anderen wählen.");
+                location.reload();
+            } else if (err.type === 'peer-unavailable') {
+                alert("Gerät nicht gefunden. Ist es online und heißt richtig?");
+                updateStatus('red', 'Gerät nicht gefunden');
+                resetUI();
+            } else {
+                document.getElementById('peerServerStatus').innerText = "❌ Fehler: " + err.type;
+            }
+        });
+
+        // Handle Incoming Connections
+        peer.on('connection', (c) => {
+            // If we are already connected, reject? For now simple logic: allow new, close old.
+            if (conn && conn.open) {
+                c.close(); 
+                return;
+            }
+            tempConn = c;
+            handleIncomingHandshake();
+        });
     }
 
-    const fullId = PREFIX + myName;
-    peer = new Peer(fullId);
-
-    peer.on('open', (id) => {
-      document.getElementById('setupPanel').classList.add('hidden');
-      document.getElementById('appPanel').classList.remove('hidden');
-      document.getElementById('displayId').textContent = myName;
-      updateStatus('online', '✅ Bereit als: ' + myName);
-      loadRecents();
-    });
-
-    peer.on('connection', (c) => {
-      pendingConn = c;
-      // Fix: Check if already open or wait for open
-      if (pendingConn.open) {
-        startReceiverAuth();
-      } else {
-        pendingConn.on('open', () => startReceiverAuth());
-      }
-    });
-
-    peer.on('error', (err) => {
-      if (err.type === 'unavailable-id') {
-        alert('Dieser Name ist schon belegt. Wähle einen anderen.');
-        location.reload();
-      } else {
-        updateStatus('offline', '❌ Fehler: ' + err.type);
-      }
-    });
-  }
-
-  // --- Receiver Auth ---
-  function startReceiverAuth() {
-    // Generate simple 4 digit PIN
-    currentPin = Math.floor(1000 + Math.random() * 9000).toString();
+    // --- 2. Connection Handshake (The "Problem" Area) ---
     
-    // Extract sender name from peer ID if possible
-    let senderName = pendingConn.peer.replace(PREFIX, '');
-    document.getElementById('incomingName').textContent = senderName;
-    document.getElementById('pinDisplay').textContent = currentPin;
-    document.getElementById('authModalReceiver').classList.remove('hidden');
+    // SENDER: Starts here
+    function initiateConnection() {
+        const targetRaw = document.getElementById('targetIdInput').value.trim().toLowerCase();
+        if (!targetRaw) return;
+        
+        const fullTargetId = PREFIX + targetRaw;
+        updateStatus('yellow', 'Suche ' + targetRaw + '...');
 
-    // Listen for PIN
-    pendingConn.on('data', (data) => {
-      if (data.type === 'auth-pin') {
-        if (data.pin === currentPin) {
-          // Success
-          document.getElementById('authModalReceiver').classList.add('hidden');
-          conn = pendingConn;
-          setupActiveConnection();
-          conn.send({ type: 'auth-success' });
-          updateStatus('online', '🔒 Verbunden mit ' + senderName);
-        } else {
-          // Fail
-          pendingConn.send({ type: 'auth-fail' });
-          setTimeout(() => pendingConn.close(), 500);
-          document.getElementById('authModalReceiver').classList.add('hidden');
-          alert('Falscher PIN eingegeben!');
+        // Connect
+        const c = peer.connect(fullTargetId, { reliable: true });
+
+        c.on('open', () => {
+            console.log("Connection opened via Server. Waiting for Auth Request...");
+            updateStatus('yellow', 'Warte auf PIN-Eingabeaufforderung...');
+        });
+
+        c.on('data', (data) => {
+            console.log("Sender received data:", data);
+            if (data.type === 'AUTH_REQUEST') {
+                // Device B is asking for PIN
+                tempConn = c;
+                showPinSenderModal();
+            } else if (data.type === 'AUTH_SUCCESS') {
+                // Success!
+                conn = tempConn;
+                setupActiveConnection();
+                hideModals();
+                updateStatus('green', '🔒 Verbunden mit ' + targetRaw);
+            } else if (data.type === 'AUTH_FAIL') {
+                alert("Falscher PIN!");
+                c.close();
+                resetUI();
+            }
+        });
+
+        c.on('close', () => { resetUI(); });
+        c.on('error', (err) => { console.error(err); alert("Verbindungsfehler"); resetUI(); });
+    }
+
+    // RECEIVER: Reacts here
+    function handleIncomingHandshake() {
+        console.log("Incoming connection...");
+        
+        // Generate PIN
+        generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        tempConn.on('open', () => {
+            console.log("Connection open. Sending AUTH_REQUEST...");
+            // Ask Sender for PIN
+            tempConn.send({ type: 'AUTH_REQUEST' });
+            
+            // Show PIN on screen
+            document.getElementById('displayPin').innerText = generatedPin;
+            document.getElementById('pinReceiverModal').classList.remove('hidden');
+            document.getElementById('connectBox').classList.add('hidden'); // Hide connect box to focus on auth
+        });
+
+        tempConn.on('data', (data) => {
+            if (data.type === 'AUTH_Submit') {
+                if (data.pin === generatedPin) {
+                    // Correct!
+                    tempConn.send({ type: 'AUTH_SUCCESS' });
+                    conn = tempConn;
+                    setupActiveConnection();
+                    hideModals();
+                    updateStatus('green', '🔒 Verbunden!');
+                } else {
+                    tempConn.send({ type: 'AUTH_FAIL' });
+                    setTimeout(() => tempConn.close(), 500);
+                    resetUI();
+                }
+            }
+        });
+        
+        tempConn.on('close', () => resetUI());
+    }
+
+    // --- 3. PIN Logic ---
+    function showPinSenderModal() {
+        document.getElementById('pinSenderModal').classList.remove('hidden');
+        document.getElementById('connectBox').classList.add('hidden');
+        document.getElementById('enterPin').value = '';
+        document.getElementById('enterPin').focus();
+    }
+
+    function submitPin() {
+        const val = document.getElementById('enterPin').value;
+        if (tempConn && tempConn.open) {
+            tempConn.send({ type: 'AUTH_Submit', pin: val });
         }
-      }
-    });
-  }
-
-  // --- Sender Auth ---
-  function connectToPeer(targetNameOverride) {
-    let targetName = targetNameOverride || document.getElementById('targetIdInput').value.trim();
-    if (typeof targetName !== 'string') targetName = document.getElementById('targetIdInput').value.trim(); // handle event arg
-    
-    if (!targetName) return;
-
-    updateStatus('connecting', '⏳ Suche ' + targetName + '...');
-    const fullTargetId = PREFIX + targetName;
-    
-    const c = peer.connect(fullTargetId);
-    
-    c.on('open', () => {
-      pendingConn = c;
-      document.getElementById('authModalSender').classList.remove('hidden');
-      
-      // Better Input Handling for Mobile
-      setTimeout(() => {
-        const input = document.getElementById('pinInput');
-        input.value = '';
-        input.focus();
-      }, 100);
-    });
-
-    c.on('data', (data) => {
-      if (data.type === 'auth-success') {
-        document.getElementById('authModalSender').classList.add('hidden');
-        conn = pendingConn;
-        setupActiveConnection();
-        updateStatus('online', '🔒 Verbunden mit ' + targetName);
-        addToRecents(targetName);
-      } else if (data.type === 'auth-fail') {
-        alert('Falscher PIN! Verbindung abgelehnt.');
-        document.getElementById('authModalSender').classList.add('hidden');
-        updateStatus('offline', '❌ Authentifizierung fehlgeschlagen');
-      }
-    });
-
-    c.on('error', (err) => {
-      updateStatus('offline', '❌ ' + targetName + ' nicht gefunden');
-    });
-    
-    // Timeout fallback if connection hangs
-    setTimeout(() => {
-      if (!conn && !document.getElementById('authModalSender').classList.contains('hidden') && !pendingConn.open) {
-         updateStatus('offline', '❌ Zeitüberschreitung');
-      }
-    }, 10000);
-  }
-
-  function submitPin() {
-    const pin = document.getElementById('pinInput').value;
-    if (!pin || pin.length < 4) return;
-    
-    if (pendingConn && pendingConn.open) {
-      pendingConn.send({ type: 'auth-pin', pin: pin });
-      // UI Feedback
-      const btn = document.querySelector('#authModalSender .btn-success');
-      const originalText = btn.textContent;
-      btn.textContent = 'Prüfe...';
-      setTimeout(() => btn.textContent = originalText, 2000);
-    } else {
-      alert('Verbindung verloren. Bitte neu versuchen.');
-      cancelAuth();
-    }
-  }
-
-  function cancelAuth() {
-    if (pendingConn) pendingConn.close();
-    document.getElementById('authModalSender').classList.add('hidden');
-    updateStatus('online', 'Bereit');
-  }
-
-  function rejectConnection() {
-    if (pendingConn) pendingConn.close();
-    document.getElementById('authModalReceiver').classList.add('hidden');
-  }
-
-  // --- Active Session ---
-  function setupActiveConnection() {
-    conn.on('data', (data) => {
-      if (data.fileName && data.fileBlob) {
-        handleReceivedFile(data);
-      }
-    });
-
-    conn.on('close', () => {
-      updateStatus('offline', '⚠️ Partner getrennt');
-      conn = null;
-    });
-  }
-
-  function handleReceivedFile(fileData) {
-    let finalName = fileData.fileName;
-    let counter = 1;
-    
-    // Intelligent renaming: name.jpg -> name (1).jpg
-    while (receivedFiles.some(f => f.name === finalName)) {
-      const lastDot = fileData.fileName.lastIndexOf('.');
-      if (lastDot !== -1) {
-        const name = fileData.fileName.substring(0, lastDot);
-        const ext = fileData.fileName.substring(lastDot);
-        finalName = `${name} (${counter})${ext}`;
-      } else {
-        finalName = `${fileData.fileName} (${counter})`;
-      }
-      counter++;
     }
 
-    const blob = new Blob([fileData.fileBlob], { type: fileData.fileType });
-    const url = URL.createObjectURL(blob);
-    const fileObj = { name: finalName, size: fileData.fileSize, url: url };
-    
-    receivedFiles.push(fileObj);
-    addFileToUI(fileObj, true);
-  }
-
-  // --- Upload ---
-  const fileInput = document.getElementById('fileInput');
-  const dropZone = document.getElementById('dropZone');
-
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-  dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.classList.remove('dragover'); });
-  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); processFiles(e.dataTransfer.files); });
-  fileInput.addEventListener('change', (e) => processFiles(e.target.files));
-
-  function processFiles(files) {
-    if (!conn) {
-      alert('Keine Verbindung! Erst verbinden.');
-      return;
+    function cancelPin() {
+        if (tempConn) tempConn.close();
+        resetUI();
     }
 
-    Array.from(files).forEach(file => {
-      conn.send({
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        fileBlob: file
-      });
-      addFileToUI({ name: file.name, size: file.size }, false);
-    });
-  }
-
-  function addFileToUI(file, isIncoming) {
-    const list = document.getElementById('fileListContainer');
-    const div = document.createElement('div');
-    div.className = 'file-item';
-    
-    const action = isIncoming 
-      ? `<a href="${file.url}" download="${file.name}" class="btn btn-success" style="width:auto; padding:8px 15px; font-size:0.9em">💾 Laden</a>`
-      : `<span style="color:var(--success); font-weight:bold;">✓</span>`;
-
-    div.innerHTML = `
-      <div class="file-meta">
-        <span class="file-name">${isIncoming ? '⬇️' : '⬆️'} ${file.name}</span>
-        <span class="file-size">${formatBytes(file.size)}</span>
-      </div>
-      <div>${action}</div>
-    `;
-    list.insertBefore(div, list.firstChild);
-  }
-
-  // --- Utils ---
-  function loadRecents() {
-    const container = document.getElementById('recentPeers');
-    if (recentDevices.length > 0) {
-      container.classList.remove('hidden');
-      container.innerHTML = recentDevices.map(name => 
-        `<span class="recent-chip" onclick="connectToPeer('${name}')">📱 ${name}</span>`
-      ).join('');
+    function hideModals() {
+        document.getElementById('pinReceiverModal').classList.add('hidden');
+        document.getElementById('pinSenderModal').classList.add('hidden');
     }
-  }
 
-  function addToRecents(name) {
-    if (!recentDevices.includes(name)) {
-      recentDevices.unshift(name);
-      if (recentDevices.length > 5) recentDevices.pop();
-      localStorage.setItem('sft_recents', JSON.stringify(recentDevices));
-      loadRecents();
+    function resetUI() {
+        hideModals();
+        document.getElementById('connectBox').classList.remove('hidden');
+        document.getElementById('uploadBox').classList.add('hidden');
+        document.getElementById('statusBar').className = 'status red';
+        document.getElementById('statusBar').innerText = 'Nicht verbunden';
+        conn = null;
+        tempConn = null;
     }
-  }
 
-  function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
+    // --- 4. Active File Transfer ---
+    function setupActiveConnection() {
+        document.getElementById('uploadBox').classList.remove('hidden');
+        document.getElementById('connectBox').classList.add('hidden');
+        document.getElementById('filesBox').classList.remove('hidden');
+
+        conn.on('data', (data) => {
+            if (data.fileName && data.fileBlob) {
+                // File received!
+                const blob = new Blob([data.fileBlob], { type: data.fileType });
+                const url = URL.createObjectURL(blob);
+                addFileToList(data.fileName, data.fileSize, url);
+            }
+        });
+    }
+
+    function uploadFiles() {
+        const files = document.getElementById('fileInput').files;
+        if (files.length === 0) return;
+        
+        const feedback = document.getElementById('transferProgress');
+        feedback.innerText = "Sende " + files.length + " Dateien...";
+
+        Array.from(files).forEach(file => {
+            conn.send({
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                fileBlob: file
+            });
+            feedback.innerText = "Gesendet: " + file.name;
+        });
+        
+        setTimeout(() => feedback.innerText = "Alle Dateien gesendet!", 2000);
+    }
+
+    function addFileToList(name, size, url) {
+        const list = document.getElementById('fileList');
+        const div = document.createElement('div');
+        const sizeStr = (size / 1024 / 1024).toFixed(2) + ' MB';
+        
+        div.innerHTML = `
+            <div>
+                <strong>${name}</strong> <small>(${sizeStr})</small>
+            </div>
+            <a href="${url}" download="${name}" class="download-btn">Download</a>
+        `;
+        list.prepend(div);
+    }
+
+    function updateStatus(cls, text) {
+        const el = document.getElementById('statusBar');
+        el.className = 'status ' + cls;
+        el.innerText = text;
+    }
 </script>
 
 </body>

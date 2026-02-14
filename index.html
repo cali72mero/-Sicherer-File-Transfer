@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V18 (Stable Fix)</title>
+    <title>Transfer V19 (Settings & Fix)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #1a202c; color: #e2e8f0; padding: 15px; max-width: 600px; margin: 0 auto; }
@@ -20,8 +20,17 @@
 
         .pin-display { font-size: 2.5rem; letter-spacing: 5px; font-family: monospace; text-align: center; background: #1a202c; padding: 15px; border-radius: 10px; margin: 15px 0; color: #63b3ed; border: 2px dashed #4a5568; }
 
-        /* Performance UI */
-        .bulk-status { background: #232936; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #4a5568; text-align: center; }
+        /* Settings Panel */
+        .settings-box { background: #232936; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #4a5568; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #2d3748; }
+        .setting-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4a5568; transition: .4s; border-radius: 34px; }
+        input:checked + .slider { background-color: #63b3ed; }
+        input:checked + .slider:before { transform: translateX(22px); background: white; width: 18px; height: 18px; bottom: 3px; left: 3px; border-radius: 50%; position: absolute; content: ""; }
+
         .progress-bar-bg { background: #4a5568; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
         .progress-bar-fill { background: #48bb78; height: 100%; width: 0%; transition: width 0.1s linear; }
         
@@ -33,7 +42,7 @@
 <body>
 
     <div style="text-align:center;">
-        <h2 style="margin-bottom:5px;">🛠️ V18 Stable Fix</h2>
+        <h2 style="margin-bottom:5px;">⚙️ V19 Settings Restore</h2>
         <div id="statusBadge" class="status-badge">Warte auf Start...</div>
     </div>
 
@@ -66,7 +75,24 @@
 
     <!-- TRANSFER -->
     <div id="screenTransfer" class="card hidden">
-        <div class="bulk-status hidden" id="bulkArea">
+        
+        <!-- RESTORED SETTINGS -->
+        <div class="settings-box">
+            <div class="setting-row">
+                <span>📉 <b>Bilder Komprimieren</b><br><small style="color:#a0aec0">Macht Dateien kleiner (kann Fehler verursachen)</small></span>
+                <label class="switch"><input type="checkbox" id="optCompress" checked><span class="slider"></span></label>
+            </div>
+            <div class="setting-row">
+                <span>🔥 <b>Burn-on-Read</b><br><small style="color:#a0aec0">Nach Download löschen</small></span>
+                <label class="switch"><input type="checkbox" id="optBurn"><span class="slider"></span></label>
+            </div>
+            <div class="setting-row">
+                <span>👻 <b>Stealth Mode</b><br><small style="color:#a0aec0">Namen verstecken</small></span>
+                <label class="switch"><input type="checkbox" id="optStealth"><span class="slider"></span></label>
+            </div>
+        </div>
+
+        <div class="bulk-status hidden" id="bulkArea" style="text-align:center; margin-bottom:15px;">
             <div style="font-size:1.1rem; font-weight:bold; color:#e2e8f0;">
                 Sende <span id="currentFileCount">0</span> / <span id="totalFileCount">0</span>
             </div>
@@ -84,8 +110,8 @@
     </div>
 
     <script>
-        const PREFIX = 'sft-v18-fix-';
-        const CHUNK_SIZE = 64 * 1024; // Safer 64KB Chunks
+        const PREFIX = 'sft-v19-settings-';
+        const CHUNK_SIZE = 64 * 1024; 
         
         let peer, conn, myPin, sessionKey;
         let incoming = {}; 
@@ -97,8 +123,6 @@
             el.className = 'status-badge ' + (type === 'secure' ? 'secure' : '');
         }
 
-        // --- STABLE CRYPTO (AES-GCM) ---
-        // Switched back to GCM because CTR state sync is hard over UDP/WebRTC packet loss
         async function deriveSessionKey(pin, salt) {
             const enc = new TextEncoder();
             const mat = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
@@ -108,7 +132,6 @@
             );
         }
 
-        // --- APP FLOW ---
         function startApp() {
             const n = document.getElementById('myName').value;
             if (n.length < 2) return alert("Name zu kurz");
@@ -126,12 +149,10 @@
                 c.on('open', () => {
                     myPin = Math.floor(100000 + Math.random() * 900000).toString();
                     conn.salt = Math.random().toString(36);
-                    
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
                     document.getElementById('authReceiver').classList.remove('hidden');
                     document.getElementById('pinDisplay').innerText = myPin;
-                    
                     c.send({ type: 'HELLO', salt: conn.salt });
                 });
                 setupData();
@@ -165,9 +186,8 @@
                     showTrans();
                 }
 
-                // RECEIVE HANDLER
                 if (d.type === 'FILE_START') {
-                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime };
+                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, burn: d.burn };
                     document.getElementById('bulkArea').classList.remove('hidden');
                     document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
                 }
@@ -192,7 +212,7 @@
         function showTrans() { 
             document.getElementById('screenAuth').classList.add('hidden');
             document.getElementById('screenTransfer').classList.remove('hidden');
-            setStatus('High-Speed Kanal', 'secure');
+            setStatus('Secure Channel', 'secure');
         }
 
         // --- SEND LOGIC ---
@@ -201,28 +221,53 @@
             const total = files.length;
             if (total === 0) return;
 
+            const doCompress = document.getElementById('optCompress').checked;
+            const doBurn = document.getElementById('optBurn').checked;
+            const doStealth = document.getElementById('optStealth').checked;
+
             document.getElementById('bulkArea').classList.remove('hidden');
             document.getElementById('totalFileCount').innerText = total;
             
             for (let i = 0; i < total; i++) {
-                const f = files[i];
+                let f = files[i];
+                let name = f.name;
+                
                 document.getElementById('currentFileCount').innerText = (i + 1);
-                document.getElementById('currentFileName').innerText = "Verschlüssele: " + f.name;
+                document.getElementById('currentFileName').innerText = "Verarbeite: " + name;
                 document.getElementById('pBar').style.width = '0%';
 
-                // 1. Encrypt Whole File (GCM is safer than CTR for sync)
-                const raw = await f.arrayBuffer();
+                if (doStealth) name = "secure_file_" + Math.random().toString(36).substr(2,5);
+
+                let blob = f;
+                
+                // COMPRESSION (With Fallback)
+                if (doCompress && f.type.startsWith('image/')) {
+                    try {
+                        const bmp = await createImageBitmap(f);
+                        const cvs = document.createElement('canvas');
+                        cvs.width = bmp.width; cvs.height = bmp.height;
+                        cvs.getContext('2d').drawImage(bmp,0,0);
+                        blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
+                        if (!blob || blob.size === 0) throw new Error("Compression failed");
+                        if (!doStealth) name = name.split('.')[0] + "-compressed.jpeg";
+                    } catch (e) {
+                        console.log("Compression skipped for " + name);
+                        blob = f; // Fallback to original
+                    }
+                }
+
+                // Encrypt
+                const raw = await blob.arrayBuffer();
                 const iv = crypto.getRandomValues(new Uint8Array(12));
                 const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, sessionKey, raw);
                 
-                // Pack IV + Data
                 const packed = new Uint8Array(iv.length + encrypted.byteLength);
                 packed.set(iv);
                 packed.set(new Uint8Array(encrypted), iv.length);
 
                 const fileId = Math.random().toString(36).substr(2, 9);
                 
-                conn.send({ type: 'FILE_START', id: fileId, name: f.name, size: packed.byteLength, mime: f.type });
+                conn.send({ type: 'FILE_START', id: fileId, name: name, size: packed.byteLength, mime: blob.type, burn: doBurn });
 
                 let offset = 0;
                 while (offset < packed.byteLength) {
@@ -233,27 +278,25 @@
                     if (offset % (CHUNK_SIZE * 5) === 0) {
                         const pct = (offset / packed.byteLength) * 100;
                         document.getElementById('pBar').style.width = pct + '%';
-                        await new Promise(r => setTimeout(r, 5)); // Yield
+                        await new Promise(r => setTimeout(r, 5)); 
                     }
                 }
                 
-                await new Promise(r => setTimeout(r, 100)); // Gap between files
+                // Extra pause for GC
+                await new Promise(r => setTimeout(r, 200)); 
             }
             
             document.getElementById('currentFileName').innerText = "Fertig!";
             document.getElementById('pBar').style.width = '100%';
         }
 
-        // --- RECEIVE LOGIC ---
         async function finalizeDownload(id) {
             const f = incoming[id];
-            
             const full = new Uint8Array(f.total);
             let off = 0;
             for(let c of f.buffer) { full.set(new Uint8Array(c), off); off+=c.byteLength; }
 
             try {
-                // Decrypt
                 const iv = full.slice(0, 12);
                 const data = full.slice(12);
                 const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, sessionKey, data);
@@ -262,10 +305,12 @@
                 const url = URL.createObjectURL(blob);
                 
                 const div = document.createElement('div');
-                div.className = 'file-item';
+                div.className = f.burn ? 'file-item error-item' : 'file-item'; // Re-use style for burn
+                if(f.burn) div.style.borderLeftColor = '#e53e3e';
+
                 div.innerHTML = `
                     <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">
-                        ${f.name}
+                        ${f.name} ${f.burn ? '🔥' : ''}
                     </div>
                     <a href="${url}" download="${f.name}" style="background:#38a169; color:white; padding:5px 10px; text-decoration:none; border-radius:4px;">⬇️</a>
                 `;
@@ -275,10 +320,9 @@
                 if (list.children.length > 50) list.lastChild.remove();
                 
             } catch(e) { 
-                console.error(e); 
                 const div = document.createElement('div');
                 div.className = 'file-item error-item';
-                div.innerHTML = `<div style="color:#fc8181">Fehler: ${f.name}</div>`;
+                div.innerHTML = `<div style="color:#fc8181">Fehler: ${f.name} (Verschlüsselung)</div>`;
                 document.getElementById('fileList').prepend(div);
             }
         }

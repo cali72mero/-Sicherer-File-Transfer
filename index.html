@@ -3,46 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V19 (Settings & Fix)</title>
+    <title>Transfer V20 (Super-Key)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #1a202c; color: #e2e8f0; padding: 15px; max-width: 600px; margin: 0 auto; }
-        .card { background: #2d3748; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #4a5568; }
-        h2 { margin: 0 0 10px 0; color: #63b3ed; font-size: 1.4rem; }
-        input { width: 100%; padding: 12px; margin: 8px 0; background: #1a202c; border: 2px solid #4a5568; border-radius: 8px; color: white; text-align: center; font-size: 1.1rem; }
+        body { font-family: -apple-system, sans-serif; background: #0f172a; color: #cbd5e1; padding: 15px; max-width: 600px; margin: 0 auto; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #334155; }
+        h2 { margin: 0 0 10px 0; color: #38bdf8; font-size: 1.4rem; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #0f172a; border: 2px solid #334155; border-radius: 8px; color: white; text-align: center; font-size: 1.1rem; }
         button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; }
-        .btn-blue { background: #3182ce; color: white; }
-        .btn-green { background: #38a169; color: white; }
+        .btn-blue { background: #0ea5e9; color: white; }
+        .btn-green { background: #22c55e; color: white; }
         .hidden { display: none !important; }
         
-        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; background: #4a5568; margin-bottom: 15px; display: inline-block; }
-        .secure { background: #38a169; color: white; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; background: #334155; margin-bottom: 15px; display: inline-block; }
+        .secure { background: #22c55e; color: #022c22; }
 
-        .pin-display { font-size: 2.5rem; letter-spacing: 5px; font-family: monospace; text-align: center; background: #1a202c; padding: 15px; border-radius: 10px; margin: 15px 0; color: #63b3ed; border: 2px dashed #4a5568; }
+        .pin-display { font-size: 2.5rem; letter-spacing: 5px; font-family: monospace; text-align: center; background: #0f172a; padding: 15px; border-radius: 10px; margin: 15px 0; color: #38bdf8; border: 2px dashed #334155; }
 
-        /* Settings Panel */
-        .settings-box { background: #232936; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #4a5568; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #2d3748; }
-        .setting-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .settings-box { background: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #334155; }
         
         .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4a5568; transition: .4s; border-radius: 34px; }
-        input:checked + .slider { background-color: #63b3ed; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        input:checked + .slider { background-color: #38bdf8; }
         input:checked + .slider:before { transform: translateX(22px); background: white; width: 18px; height: 18px; bottom: 3px; left: 3px; border-radius: 50%; position: absolute; content: ""; }
 
-        .progress-bar-bg { background: #4a5568; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
-        .progress-bar-fill { background: #48bb78; height: 100%; width: 0%; transition: width 0.1s linear; }
+        .progress-bar-bg { background: #334155; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+        .progress-bar-fill { background: #22c55e; height: 100%; width: 0%; transition: width 0.1s linear; }
         
         .file-list { max-height: 400px; overflow-y: auto; }
-        .file-item { padding: 10px; background: #2d3748; margin-top: 5px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #63b3ed; font-size: 0.9rem; }
-        .error-item { border-left-color: #e53e3e; background: #4a2020; }
+        .file-item { padding: 10px; background: #1e293b; margin-top: 5px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #38bdf8; font-size: 0.9rem; }
+        .error-item { border-left-color: #ef4444; background: #451a1a; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2 style="margin-bottom:5px;">⚙️ V19 Settings Restore</h2>
+        <h2 style="margin-bottom:5px;">🛡️ V20 Super-Key</h2>
         <div id="statusBadge" class="status-badge">Warte auf Start...</div>
     </div>
 
@@ -55,15 +53,15 @@
 
     <!-- CONNECT -->
     <div id="screenConnect" class="card hidden">
-        <p style="text-align:center;">Ich bin: <strong id="dispName" style="color:#63b3ed">...</strong></p>
-        <hr style="border-color:#4a5568; margin:15px 0;">
+        <p style="text-align:center;">Ich bin: <strong id="dispName" style="color:#38bdf8">...</strong></p>
+        <hr style="border-color:#334155; margin:15px 0;">
         <input type="text" id="partnerName" placeholder="Partner Name" onkeyup="cleanInput(this)">
         <button class="btn-green" onclick="connect()">Verbinden</button>
     </div>
 
     <!-- AUTH -->
     <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center;">🛡️ Auth</h2>
+        <h2 style="text-align:center;">🔑 Kanal öffnen</h2>
         <div id="authReceiver" class="hidden">
             <div id="pinDisplay" class="pin-display">----</div>
         </div>
@@ -76,33 +74,32 @@
     <!-- TRANSFER -->
     <div id="screenTransfer" class="card hidden">
         
-        <!-- RESTORED SETTINGS -->
         <div class="settings-box">
             <div class="setting-row">
-                <span>📉 <b>Bilder Komprimieren</b><br><small style="color:#a0aec0">Macht Dateien kleiner (kann Fehler verursachen)</small></span>
-                <label class="switch"><input type="checkbox" id="optCompress" checked><span class="slider"></span></label>
+                <span>📉 <b>Komprimieren</b><br><small style="color:#94a3b8">Mach es AUS bei Fehlern</small></span>
+                <label class="switch"><input type="checkbox" id="optCompress"><span class="slider"></span></label>
             </div>
             <div class="setting-row">
-                <span>🔥 <b>Burn-on-Read</b><br><small style="color:#a0aec0">Nach Download löschen</small></span>
-                <label class="switch"><input type="checkbox" id="optBurn"><span class="slider"></span></label>
-            </div>
-            <div class="setting-row">
-                <span>👻 <b>Stealth Mode</b><br><small style="color:#a0aec0">Namen verstecken</small></span>
+                <span>👻 <b>Stealth Mode</b></span>
                 <label class="switch"><input type="checkbox" id="optStealth"><span class="slider"></span></label>
+            </div>
+            <div class="setting-row">
+                <span>🔥 <b>Burn-on-Read</b></span>
+                <label class="switch"><input type="checkbox" id="optBurn"><span class="slider"></span></label>
             </div>
         </div>
 
         <div class="bulk-status hidden" id="bulkArea" style="text-align:center; margin-bottom:15px;">
             <div style="font-size:1.1rem; font-weight:bold; color:#e2e8f0;">
-                Sende <span id="currentFileCount">0</span> / <span id="totalFileCount">0</span>
+                <span id="currentFileCount">0</span> / <span id="totalFileCount">0</span>
             </div>
-            <div style="font-size:0.8rem; color:#a0aec0; margin-top:5px;" id="currentFileName">Bereit...</div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-top:5px;" id="currentFileName">Bereit...</div>
             <div class="progress-bar-bg"><div id="pBar" class="progress-bar-fill"></div></div>
         </div>
 
-        <div style="text-align:center; padding:30px; border:2px dashed #4a5568; border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
+        <div style="text-align:center; padding:30px; border:2px dashed #334155; border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
             <span style="font-size:2rem;">📂</span><br>
-            <strong>Dateien (Massen-Upload)</strong>
+            <strong>Dateien wählen</strong>
         </div>
         <input type="file" id="files" multiple style="display:none;" onchange="startBulkUpload()">
 
@@ -110,10 +107,11 @@
     </div>
 
     <script>
-        const PREFIX = 'sft-v19-settings-';
-        const CHUNK_SIZE = 64 * 1024; 
+        const PREFIX = 'sft-v20-superkey-';
+        const CHUNK_SIZE = 64 * 1024;
         
-        let peer, conn, myPin, sessionKey;
+        let peer, conn, myPin;
+        let superKey = null; // The 64-char secret key
         let incoming = {}; 
         
         function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
@@ -123,13 +121,17 @@
             el.className = 'status-badge ' + (type === 'secure' ? 'secure' : '');
         }
 
-        async function deriveSessionKey(pin, salt) {
+        // --- CRYPTO LOGIC V20 (Double Layer) ---
+        // 1. PIN Key: Used ONLY to exchange the Super-Key securely.
+        async function derivePinKey(pin, salt) {
             const enc = new TextEncoder();
             const mat = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
-            return crypto.subtle.deriveKey(
-                { name: "PBKDF2", salt: enc.encode(salt), iterations: 100000, hash: "SHA-256" },
-                mat, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
-            );
+            return crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode(salt), iterations: 100000, hash: "SHA-256" }, mat, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt", "wrapKey", "unwrapKey"]);
+        }
+
+        // 2. Super Key: Random 256-bit key used for actual file encryption.
+        async function generateSuperKey() {
+            return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
         }
 
         function startApp() {
@@ -147,6 +149,7 @@
             peer.on('connection', (c) => {
                 conn = c;
                 c.on('open', () => {
+                    // Receiver Logic
                     myPin = Math.floor(100000 + Math.random() * 900000).toString();
                     conn.salt = Math.random().toString(36);
                     document.getElementById('screenConnect').classList.add('hidden');
@@ -167,26 +170,52 @@
 
         function setupData() {
             conn.on('data', async (d) => {
+                // --- HANDSHAKE & KEY EXCHANGE ---
                 if (d.type === 'HELLO') {
+                    // Sender got Salt
                     conn.pSalt = d.salt; conn.salt = Math.random().toString(36);
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
                     document.getElementById('authSender').classList.remove('hidden');
                 }
-                if (d.type === 'PIN_VERIFY') {
+
+                if (d.type === 'PIN_SUBMIT') {
+                    // Receiver checks PIN
                     if (d.pin === myPin) {
-                        sessionKey = await deriveSessionKey(myPin, conn.salt + d.salt);
-                        conn.send({ type: 'AUTH_OK' });
+                        // 1. PIN is correct. Now generate Super-Key.
+                        const pinKey = await derivePinKey(myPin, conn.salt + d.salt);
+                        superKey = await generateSuperKey(); // Create new random key
+                        
+                        // 2. Export Super-Key, Encrypt with PIN-Key, Send to Sender
+                        const rawSuperKey = await crypto.subtle.exportKey("raw", superKey);
+                        const iv = crypto.getRandomValues(new Uint8Array(12));
+                        const encryptedKey = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, pinKey, rawSuperKey);
+
+                        conn.send({ type: 'KEY_EXCHANGE', iv: iv, keyData: encryptedKey });
                         showTrans();
                     } else { alert('Falsch'); location.reload(); }
                 }
-                if (d.type === 'AUTH_OK') {
+
+                if (d.type === 'KEY_EXCHANGE') {
+                    // Sender receives Super-Key
                     const p = document.getElementById('inputPin').value;
-                    sessionKey = await deriveSessionKey(p, conn.pSalt, conn.salt);
-                    showTrans();
+                    try {
+                        const pinKey = await derivePinKey(p, conn.pSalt, conn.salt);
+                        const rawSuperKey = await crypto.subtle.decrypt(
+                            { name: "AES-GCM", iv: new Uint8Array(d.iv) }, 
+                            pinKey, 
+                            d.keyData
+                        );
+                        superKey = await crypto.subtle.importKey("raw", rawSuperKey, "AES-GCM", true, ["encrypt", "decrypt"]);
+                        showTrans();
+                    } catch(e) {
+                        alert("Handshake fehlgeschlagen! PIN falsch?"); location.reload();
+                    }
                 }
 
+                // --- FILE TRANSFER ---
                 if (d.type === 'FILE_START') {
+                    if(!superKey) return console.error("No Key!");
                     incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, burn: d.burn };
                     document.getElementById('bulkArea').classList.remove('hidden');
                     document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
@@ -208,15 +237,17 @@
             });
         }
 
-        function submitPin() { conn.send({ type: 'PIN_VERIFY', pin: document.getElementById('inputPin').value, salt: conn.salt }); }
+        function submitPin() { conn.send({ type: 'PIN_SUBMIT', pin: document.getElementById('inputPin').value, salt: conn.salt }); }
+        
         function showTrans() { 
             document.getElementById('screenAuth').classList.add('hidden');
             document.getElementById('screenTransfer').classList.remove('hidden');
-            setStatus('Secure Channel', 'secure');
+            setStatus('🔒 Super-Key Aktiv', 'secure');
         }
 
         // --- SEND LOGIC ---
         async function startBulkUpload() {
+            if(!superKey) return alert("Warte auf sicheren Schlüssel...");
             const files = Array.from(document.getElementById('files').files);
             const total = files.length;
             if (total === 0) return;
@@ -231,16 +262,13 @@
             for (let i = 0; i < total; i++) {
                 let f = files[i];
                 let name = f.name;
-                
                 document.getElementById('currentFileCount').innerText = (i + 1);
-                document.getElementById('currentFileName').innerText = "Verarbeite: " + name;
+                document.getElementById('currentFileName').innerText = "Verschlüssele: " + name;
                 document.getElementById('pBar').style.width = '0%';
 
-                if (doStealth) name = "secure_file_" + Math.random().toString(36).substr(2,5);
-
+                if (doStealth) name = "secure_" + Math.random().toString(36).substr(2,6);
                 let blob = f;
                 
-                // COMPRESSION (With Fallback)
                 if (doCompress && f.type.startsWith('image/')) {
                     try {
                         const bmp = await createImageBitmap(f);
@@ -248,25 +276,20 @@
                         cvs.width = bmp.width; cvs.height = bmp.height;
                         cvs.getContext('2d').drawImage(bmp,0,0);
                         blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
-                        if (!blob || blob.size === 0) throw new Error("Compression failed");
-                        if (!doStealth) name = name.split('.')[0] + "-compressed.jpeg";
-                    } catch (e) {
-                        console.log("Compression skipped for " + name);
-                        blob = f; // Fallback to original
-                    }
+                        if (!doStealth) name = name.replace(/\.[^/.]+$/, "") + ".jpg";
+                    } catch (e) { console.log("Skip compress"); }
                 }
 
-                // Encrypt
+                // Encrypt with Super-Key
                 const raw = await blob.arrayBuffer();
                 const iv = crypto.getRandomValues(new Uint8Array(12));
-                const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, sessionKey, raw);
+                const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, superKey, raw);
                 
                 const packed = new Uint8Array(iv.length + encrypted.byteLength);
                 packed.set(iv);
                 packed.set(new Uint8Array(encrypted), iv.length);
 
                 const fileId = Math.random().toString(36).substr(2, 9);
-                
                 conn.send({ type: 'FILE_START', id: fileId, name: name, size: packed.byteLength, mime: blob.type, burn: doBurn });
 
                 let offset = 0;
@@ -274,20 +297,15 @@
                     const chunk = packed.slice(offset, offset + CHUNK_SIZE);
                     conn.send({ type: 'FILE_CHUNK', id: fileId, data: chunk });
                     offset += CHUNK_SIZE;
-                    
                     if (offset % (CHUNK_SIZE * 5) === 0) {
                         const pct = (offset / packed.byteLength) * 100;
                         document.getElementById('pBar').style.width = pct + '%';
                         await new Promise(r => setTimeout(r, 5)); 
                     }
                 }
-                
-                // Extra pause for GC
-                await new Promise(r => setTimeout(r, 200)); 
+                await new Promise(r => setTimeout(r, 150)); 
             }
-            
             document.getElementById('currentFileName').innerText = "Fertig!";
-            document.getElementById('pBar').style.width = '100%';
         }
 
         async function finalizeDownload(id) {
@@ -299,31 +317,26 @@
             try {
                 const iv = full.slice(0, 12);
                 const data = full.slice(12);
-                const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, sessionKey, data);
+                const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, superKey, data);
                 
                 const blob = new Blob([dec], {type: f.mime});
                 const url = URL.createObjectURL(blob);
                 
                 const div = document.createElement('div');
-                div.className = f.burn ? 'file-item error-item' : 'file-item'; // Re-use style for burn
-                if(f.burn) div.style.borderLeftColor = '#e53e3e';
-
+                div.className = f.burn ? 'file-item error-item' : 'file-item';
+                if(f.burn) div.style.borderLeftColor = '#ef4444';
+                
                 div.innerHTML = `
                     <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px;">
                         ${f.name} ${f.burn ? '🔥' : ''}
                     </div>
-                    <a href="${url}" download="${f.name}" style="background:#38a169; color:white; padding:5px 10px; text-decoration:none; border-radius:4px;">⬇️</a>
+                    <a href="${url}" download="${f.name}" style="background:#22c55e; color:#022c22; padding:5px 10px; text-decoration:none; border-radius:4px; font-weight:bold;">⬇️</a>
                 `;
-                
                 const list = document.getElementById('fileList');
                 list.prepend(div);
                 if (list.children.length > 50) list.lastChild.remove();
-                
             } catch(e) { 
-                const div = document.createElement('div');
-                div.className = 'file-item error-item';
-                div.innerHTML = `<div style="color:#fc8181">Fehler: ${f.name} (Verschlüsselung)</div>`;
-                document.getElementById('fileList').prepend(div);
+                console.error(e);
             }
         }
     </script>

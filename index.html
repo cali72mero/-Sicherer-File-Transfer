@@ -3,147 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V8 - Ultimate (No P2P)</title>
-    <!-- We switch from PeerJS (WebRTC) to PieSocket (WebSocket) to bypass strict Firewalls -->
-    <script src="https://unpkg.com/piesocket-js@5"></script>
+    <title>Sicherer File Transfer - V9 (Universal)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; background: #222; color: white; max-width: 600px; margin: 0 auto; text-align: center; }
-        .box { background: #333; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        input { font-size: 18px; padding: 10px; width: 80%; margin: 10px 0; border-radius: 5px; text-align: center; }
-        button { font-size: 18px; padding: 12px 24px; background: #e91e63; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; }
+        body { font-family: -apple-system, sans-serif; background: #f4f6f8; color: #333; max-width: 500px; margin: 0 auto; padding: 15px; }
+        .box { background: white; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #007bff; }
+        input { font-size: 16px; padding: 12px; width: 100%; box-sizing: border-box; border: 2px solid #e1e4e8; border-radius: 8px; margin: 10px 0; }
+        button { font-size: 16px; width: 100%; padding: 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-top: 5px; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-green { background: #28a745; color: white; }
+        .btn-red { background: #dc3545; color: white; }
         .hidden { display: none; }
-        .log { font-family: monospace; color: #aaa; font-size: 12px; text-align: left; background: #111; padding: 10px; height: 150px; overflow-y: scroll; }
-        a { color: #4caf50; font-weight: bold; text-decoration: none; font-size: 18px; }
+        .pin-box { font-size: 36px; text-align: center; letter-spacing: 5px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; font-weight: bold; }
+        #log { font-size: 11px; color: #666; height: 80px; overflow-y: scroll; border-top: 1px solid #eee; margin-top: 20px; padding-top: 10px; }
+        .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .online { background-color: #28a745; }
+        .offline { background-color: #dc3545; }
     </style>
 </head>
 <body>
 
-    <h1>🚀 Transfer V8 (Firewall-Bypass)</h1>
-    <p style="font-size: 0.9em; color: #aaa;">Nutzt WebSockets statt WebRTC (läuft fast überall).</p>
-
-    <!-- 1. Raum -->
-    <div id="step1" class="box">
-        <h3>1. Gemeinsamer Raum</h3>
-        <p>Denkt euch eine geheime Zahl aus (z.B. 1234):</p>
-        <input type="number" id="roomCode" placeholder="Code (z.B. 5566)">
-        <button onclick="joinRoom()">Raum beitreten</button>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>⚡ Transfer V9</h3>
+        <div><span id="statusDot" class="status-dot"></span> <span id="statusText" style="font-size: 12px;">Offline</span></div>
     </div>
 
-    <!-- 2. Transfer -->
-    <div id="step2" class="box hidden">
-        <h3>✅ Im Raum: <span id="roomDisplay"></span></h3>
-        <p id="status">Warte auf Partner...</p>
+    <!-- 1. LOGIN -->
+    <div id="screenLogin" class="box">
+        <h2>1. Dein Name</h2>
+        <input type="text" id="myId" placeholder="z.B. handy1" onkeyup="clean(this)">
+        <button class="btn-blue" onclick="startApp()">Starten</button>
+        <p style="font-size: 0.8em; color: #666; margin-top: 10px;">Tipp: Beide Geräte im selben WLAN oder beide 4G nutzen.</p>
+    </div>
+
+    <!-- 2. CONNECT -->
+    <div id="screenConnect" class="box hidden">
+        <h2>2. Verbinden</h2>
+        <p>Ich bin: <b id="displayId" style="color:#007bff">...</b></p>
+        <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
         
-        <div style="border: 2px dashed #e91e63; padding: 20px; margin: 20px 0;">
-            <input type="file" id="fileInput">
-            <button onclick="uploadFile()">Senden</button>
+        <p>Mit wem verbinden?</p>
+        <input type="text" id="partnerId" placeholder="Name des Partners" onkeyup="clean(this)">
+        <button class="btn-green" onclick="connectToPartner()" id="btnConn">Verbinden</button>
+    </div>
+
+    <!-- 3. AUTH (PIN) -->
+    <div id="screenAuth" class="box hidden">
+        <h2 style="text-align: center;">🔒 Sicherheit</h2>
+        
+        <!-- Receiver sees this -->
+        <div id="authReceiver" class="hidden">
+            <p style="text-align: center;">Partner gefunden! Zeige ihm diesen Code:</p>
+            <div id="pinDisplay" class="pin-box">----</div>
+            <p style="text-align: center; font-size: 0.8em;">Warte auf Eingabe...</p>
         </div>
 
-        <h3>Empfangene Dateien:</h3>
-        <div id="fileList"></div>
+        <!-- Sender sees this -->
+        <div id="authSender" class="hidden">
+            <p style="text-align: center;">Partner gefunden! Gib seinen Code ein:</p>
+            <input type="tel" id="pinInput" placeholder="0000" style="text-align: center; font-size: 24px; letter-spacing: 5px;" maxlength="4">
+            <button class="btn-green" onclick="submitPin()">Bestätigen</button>
+        </div>
+        
+        <button class="btn-red" onclick="location.reload()" style="margin-top: 15px; background: transparent; color: #dc3545; border: 1px solid #dc3545;">Abbrechen</button>
     </div>
 
-    <div id="debug" class="log">System bereit.</div>
+    <!-- 4. FILES -->
+    <div id="screenFiles" class="box hidden">
+        <h2 style="color: #28a745; text-align: center;">✅ Verbunden!</h2>
+        <div style="text-align: center; padding: 20px; border: 2px dashed #28a745; background: #f0fff4; border-radius: 10px;">
+            <input type="file" id="fileInput" multiple>
+            <button class="btn-green" onclick="sendFiles()" style="margin-top: 10px;">Dateien senden</button>
+        </div>
+        <div id="fileList" style="margin-top: 20px;"></div>
+    </div>
+
+    <div id="log">System bereit...</div>
 
     <script>
-        // FREE API KEY for PieSocket (Public Demo Key)
-        // Warning: Limited daily usage, but works for testing.
-        const API_KEY = 'VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV'; 
-        const CLUSTER_ID = 'free.blr2.piesocket.com';
+        const PREFIX = 'sft-v9-stable-';
+        const ICE_SERVERS = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+        ];
 
-        let channel;
-        let myName = 'User' + Math.floor(Math.random() * 1000);
+        let peer, conn, myPin;
+        let myName = '';
 
-        function log(msg) {
-            const d = document.getElementById('debug');
-            d.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + d.innerHTML;
+        function clean(e) { e.value = e.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+        function log(m) { document.getElementById('log').innerHTML += `<div>${m}</div>`; }
+        function setStatus(online) {
+            document.getElementById('statusDot').className = 'status-dot ' + (online ? 'online' : 'offline');
+            document.getElementById('statusText').innerText = online ? 'Online' : 'Offline';
         }
 
-        function joinRoom() {
-            const code = document.getElementById('roomCode').value;
-            if (!code) return alert("Code eingeben!");
-
-            log("Verbinde zu Raum " + code + " via WebSocket...");
+        // --- 1. Start ---
+        function startApp() {
+            const name = document.getElementById('myId').value;
+            if (name.length < 2) return alert('Name zu kurz');
             
-            // PieSocket connection
-            var piesocket = new PieSocket.default({
-                clusterId: CLUSTER_ID,
-                apiKey: API_KEY
+            myName = name;
+            log('Starte Peer...');
+            
+            peer = new Peer(PREFIX + name, {
+                debug: 1,
+                config: { iceServers: ICE_SERVERS }
             });
 
-            channel = piesocket.subscribe(code);
-
-            channel.on('open', () => {
-                log("✅ Verbunden mit Server!");
-                document.getElementById('step1').classList.add('hidden');
-                document.getElementById('step2').classList.remove('hidden');
-                document.getElementById('roomDisplay').innerText = code;
-                
-                // Announce self
-                channel.publish("system", JSON.stringify({ type: 'JOIN', name: myName }));
+            peer.on('open', (id) => {
+                log('Online als ' + name);
+                setStatus(true);
+                document.getElementById('screenLogin').classList.add('hidden');
+                document.getElementById('screenConnect').classList.remove('hidden');
+                document.getElementById('displayId').innerText = name;
             });
 
-            channel.on('message', (msg) => {
-                // Check if message is system or data
-                // PieSocket sends raw events
+            peer.on('error', (err) => {
+                log('Fehler: ' + err.type);
+                if (err.type === 'unavailable-id') alert('Name belegt!');
+                else alert('Verbindungsfehler. Bitte Seite neu laden.');
             });
 
-            channel.listen("system", (data, meta) => {
-                const d = JSON.parse(data);
-                if (d.type === 'JOIN' && d.name !== myName) {
-                    log("Partner " + d.name + " ist beigetreten!");
-                    document.getElementById('status').innerText = "Partner ist da!";
-                }
-            });
+            // RECEIVER LOGIC
+            peer.on('connection', (c) => {
+                log('Eingehende Verbindung...');
+                c.on('open', () => {
+                    log('Verbindung steht. Auth starten...');
+                    conn = c;
+                    setupConn();
+                    
+                    // I am receiver -> Generate PIN
+                    myPin = Math.floor(1000 + Math.random()*9000).toString();
+                    
+                    // Tell Sender to ask for PIN
+                    conn.send({ type: 'AUTH_REQ' });
 
-            channel.listen("file_transfer", (data, meta) => {
-                log("Datei-Daten empfangen...");
-                const d = JSON.parse(data);
-                
-                // Reassemble Base64
-                fetch(d.data)
-                .then(res => res.blob())
-                .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    const div = document.createElement('div');
-                    div.innerHTML = `
-                        <div style="padding:10px; border-bottom:1px solid #555;">
-                            ${d.name} (${(d.size/1024).toFixed(1)} KB)<br>
-                            <a href="${url}" download="${d.name}">⬇️ Download</a>
-                        </div>
-                    `;
-                    document.getElementById('fileList').prepend(div);
-                    log("Datei fertig: " + d.name);
+                    // Show PIN UI
+                    document.getElementById('screenConnect').classList.add('hidden');
+                    document.getElementById('screenAuth').classList.remove('hidden');
+                    document.getElementById('authReceiver').classList.remove('hidden');
+                    document.getElementById('pinDisplay').innerText = myPin;
                 });
             });
-            
-            channel.on('error', (err) => {
-                log("Fehler: " + err);
-            });
         }
 
-        function uploadFile() {
-            const file = document.getElementById('fileInput').files[0];
-            if (!file) return;
+        // --- 2. Connect ---
+        function connectToPartner() {
+            const p = document.getElementById('partnerId').value;
+            if (!p) return;
+            
+            const btn = document.getElementById('btnConn');
+            btn.innerText = 'Verbinde...';
+            btn.disabled = true;
+            
+            log('Verbinde zu ' + p);
+            const c = peer.connect(PREFIX + p);
 
-            if (file.size > 1000000) { // 1MB limit for WebSocket
-                return alert("Achtung: In dieser Fallback-Version gehen nur kleine Dateien (max 1MB). Dein Netzwerk blockiert große P2P-Transfers.");
-            }
+            c.on('open', () => {
+                log('Verbindung hergestellt!');
+                conn = c;
+                setupConn();
+            });
 
-            log("Lese Datei...");
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                log("Sende Datei via Relay...");
-                const payload = {
-                    name: file.name,
-                    size: file.size,
-                    data: e.target.result // Base64
-                };
-                
-                channel.publish("file_transfer", JSON.stringify(payload));
-                alert("Gesendet!");
-            };
-            reader.readAsDataURL(file);
+            c.on('error', (err) => {
+                log('Verbindungsfehler');
+                alert('Partner nicht erreichbar. Ist er online?');
+                location.reload();
+            });
+            
+            setTimeout(() => {
+                if (!conn) {
+                    alert('Keine Antwort. Firewall blockiert?');
+                    location.reload();
+                }
+            }, 8000);
+        }
+
+        // --- 3. Logic ---
+        function setupConn() {
+            conn.on('data', (data) => {
+                // Sender: Receive Request to Enter PIN
+                if (data.type === 'AUTH_REQ') {
+                    document.getElementById('screenConnect').classList.add('hidden');
+                    document.getElementById('screenAuth').classList.remove('hidden');
+                    document.getElementById('authSender').classList.remove('hidden');
+                }
+
+                // Receiver: Check PIN
+                if (data.type === 'PIN_CHECK') {
+                    if (data.pin === myPin) {
+                        conn.send({ type: 'AUTH_OK' });
+                        showFiles();
+                    } else {
+                        conn.send({ type: 'AUTH_FAIL' });
+                        alert('Falscher PIN');
+                        location.reload();
+                    }
+                }
+
+                if (data.type === 'AUTH_OK') showFiles();
+                if (data.type === 'AUTH_FAIL') { alert('Falscher PIN'); location.reload(); }
+
+                // Files
+                if (data.file) {
+                    log('Datei empfangen: ' + data.name);
+                    const blob = new Blob([data.file]);
+                    const url = URL.createObjectURL(blob);
+                    const div = document.createElement('div');
+                    div.style.padding = '10px';
+                    div.style.borderBottom = '1px solid #eee';
+                    div.innerHTML = `<b>${data.name}</b> <a href="${url}" download="${data.name}" style="color:green; float:right;">Laden</a>`;
+                    document.getElementById('fileList').prepend(div);
+                }
+            });
+            
+            conn.on('close', () => { alert('Partner getrennt'); location.reload(); });
+        }
+
+        function submitPin() {
+            const p = document.getElementById('pinInput').value;
+            conn.send({ type: 'PIN_CHECK', pin: p });
+        }
+
+        function showFiles() {
+            document.getElementById('screenAuth').classList.add('hidden');
+            document.getElementById('screenFiles').classList.remove('hidden');
+        }
+
+        function sendFiles() {
+            const files = document.getElementById('fileInput').files;
+            Array.from(files).forEach(f => {
+                log('Sende ' + f.name);
+                conn.send({ file: f, name: f.name });
+            });
+            alert('Gesendet!');
         }
     </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V14 (Auto-E2EE)</title>
+    <title>Transfer V15 (Stabil & Chunked)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: -apple-system, sans-serif; background: #eef2f5; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; }
@@ -12,51 +12,41 @@
         input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; box-sizing: border-box; text-align: center; }
         button { width: 100%; padding: 14px; background: #4299e1; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; }
         button.green { background: #48bb78; }
-        button.red { background: #f56565; }
         .hidden { display: none; }
         .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; background: #cbd5e0; color: #4a5568; margin-bottom: 20px; }
         .status-badge.online { background: #c6f6d5; color: #22543d; }
         .status-badge.secure { background: #805ad5; color: white; }
         .pin-display { font-size: 48px; letter-spacing: 10px; font-weight: 800; text-align: center; background: #edf2f7; padding: 20px; border-radius: 10px; margin: 20px 0; color: #2d3748; }
-        
-        .tools-box { background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
-        .tool-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
-        input:checked + .slider { background-color: #4299e1; }
-        input:checked + .slider:before { transform: translateX(24px); background: white; }
-        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
 
+        .progress-container { width: 100%; background: #e2e8f0; border-radius: 10px; height: 10px; margin-top: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background: #48bb78; width: 0%; transition: width 0.2s; }
+        
         .file-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; margin-top: 5px; border-radius: 8px; border-left: 5px solid #805ad5; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2>🛡️ Transfer V14</h2>
+        <h2>🛡️ Transfer V15</h2>
         <div id="statusBadge" class="status-badge">Nicht verbunden</div>
     </div>
 
-    <!-- 1. SETUP -->
+    <!-- SETUP & CONNECT (Simplified V14 Logic) -->
     <div id="screenSetup" class="card">
-        <h2>1. Wer bist du?</h2>
-        <input type="text" id="myName" placeholder="Dein Name (z.B. handy)" onkeyup="cleanInput(this)">
-        <button onclick="startApp()">Online gehen</button>
+        <h2>1. Start</h2>
+        <input type="text" id="myName" placeholder="Dein Name" onkeyup="cleanInput(this)">
+        <button onclick="startApp()">Los geht's</button>
     </div>
 
-    <!-- 2. CONNECT -->
     <div id="screenConnect" class="card hidden">
         <p style="text-align:center;">Ich bin: <strong id="dispName" style="color:#4299e1;">...</strong></p>
         <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-        <h3>Verbinden</h3>
-        <input type="text" id="partnerName" placeholder="Name des Partners" onkeyup="cleanInput(this)">
-        <button class="green" onclick="connect()" id="btnConn">Verbinden</button>
+        <input type="text" id="partnerName" placeholder="Partner Name" onkeyup="cleanInput(this)">
+        <button class="green" onclick="connect()">Verbinden</button>
     </div>
 
-    <!-- 3. AUTH -->
     <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center;">🔒 Sicherer Handshake</h2>
+        <h2 style="text-align:center;">🔒 Handshake</h2>
         <div id="authReceiver" class="hidden">
             <p style="text-align:center;">PIN für Partner:</p>
             <div id="pinDisplay" class="pin-display">----</div>
@@ -68,92 +58,79 @@
         </div>
     </div>
 
-    <!-- 4. TRANSFER -->
+    <!-- TRANSFER -->
     <div id="screenTransfer" class="card hidden">
-        <h2 style="text-align:center; color:#805ad5;">🔒 E2E Verschlüsselt</h2>
+        <h2 style="text-align:center; color:#805ad5;">✅ Stabil & Sicher</h2>
         
-        <div class="tools-box">
-            <h4 style="margin:0 0 10px 0;">⚙️ Optimierung</h4>
-            <div class="tool-row">
-                <span>📉 Bilder komprimieren</span>
-                <label class="switch"><input type="checkbox" id="optCompress"><span class="slider"></span></label>
+        <div style="background:#f7fafc; padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between;">
+                <span>⚙️ Auto-Optimierung</span>
+                <span style="color:green; font-weight:bold;">AKTIV</span>
             </div>
-            <div class="tool-row">
-                <span>✨ Quality Boost (Schärfen)</span>
-                <label class="switch"><input type="checkbox" id="optBoost"><span class="slider"></span></label>
-            </div>
+            <p style="font-size:0.8em; color:#666; margin-top:5px;">
+                Große Dateien werden in kleine Pakete zerlegt (Chunking), damit der Browser nicht einfriert.
+            </p>
         </div>
 
         <div style="text-align:center; padding:20px; border:2px dashed #805ad5; background:#faf5ff; border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
             <strong>📂 Dateien wählen</strong>
         </div>
-        <input type="file" id="files" multiple style="display:none;" onchange="processAndSend()">
+        <input type="file" id="files" multiple style="display:none;" onchange="handleFileSelection()">
         
-        <div id="progress" class="hidden" style="text-align:center; margin-top:10px; color:#666;">Verschlüssele...</div>
+        <!-- Status Display -->
+        <div id="statusArea" class="hidden" style="margin-top:20px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.9em; margin-bottom:5px;">
+                <span id="statusText">Sende...</span>
+                <span id="statusPercent">0%</span>
+            </div>
+            <div class="progress-container"><div id="pBar" class="progress-bar"></div></div>
+        </div>
+
         <div id="fileList" style="margin-top:20px;"></div>
     </div>
 
     <script>
-        const PREFIX = 'sft-v14-auto-';
-        const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+        const PREFIX = 'sft-v15-chunk-';
+        const CHUNK_SIZE = 64 * 1024; // 64KB Chunks (Safe for Mobile)
         
-        let peer, conn, myPin, myName;
-        let sessionKey = null; // AES-GCM Key for this session
-
+        let peer, conn, myPin, sessionKey;
+        let incomingFile = { buffer: [], received: 0, total: 0, name: '', mime: '' };
+        
         function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
         function setStatus(msg, type) { document.getElementById('statusBadge').className = 'status-badge '+type; document.getElementById('statusBadge').innerText = msg; }
 
-        // --- CRYPTO (Diffie-Hellman Sim) ---
-        // Since WebCrypto doesn't do DH easily without certs, we use a shared secret derived from the PIN + internal handshake
-        // In a real app, use ECDH. Here we derive a session key from the verified PIN + random salts exchanged during handshake.
-        // This ensures if you don't know the PIN, you can't derive the key.
-        
+        // --- CRYPTO (Same V14 Logic) ---
         async function deriveSessionKey(pin, salt1, salt2) {
             const enc = new TextEncoder();
-            const material = await crypto.subtle.importKey(
-                "raw", 
-                enc.encode(pin + salt1 + salt2), 
-                "PBKDF2", 
-                false, 
-                ["deriveKey"]
-            );
-            return crypto.subtle.deriveKey(
-                { name: "PBKDF2", salt: enc.encode("sft-v14-secure"), iterations: 200000, hash: "SHA-256" },
-                material,
-                { name: "AES-GCM", length: 256 },
-                true, // exportable for debug if needed, but we keep it internal
-                ["encrypt", "decrypt"]
-            );
+            const mat = await crypto.subtle.importKey("raw", enc.encode(pin+salt1+salt2), "PBKDF2", false, ["deriveKey"]);
+            return crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("sft-v15"), iterations: 100000, hash: "SHA-256" }, mat, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
         }
 
-        // --- APP ---
+        // --- APP START ---
         function startApp() {
-            myName = document.getElementById('myName').value;
-            if (myName.length < 2) return alert("Name zu kurz");
-            
-            peer = new Peer(PREFIX + myName, { debug: 1, config: { iceServers: ICE_SERVERS } });
+            const n = document.getElementById('myName').value;
+            if (n.length < 2) return alert("Name zu kurz");
+            peer = new Peer(PREFIX + n, { debug: 1 });
             
             peer.on('open', () => {
-                setStatus('Online: ' + myName, 'online');
+                setStatus('Online: ' + n, 'online');
                 document.getElementById('screenSetup').classList.add('hidden');
                 document.getElementById('screenConnect').classList.remove('hidden');
-                document.getElementById('dispName').innerText = myName;
+                document.getElementById('dispName').innerText = n;
             });
-            
+
             peer.on('connection', (c) => {
                 conn = c;
                 c.on('open', () => {
-                    // Receiver generates PIN and Salt
                     myPin = Math.floor(1000 + Math.random()*9000).toString();
-                    const mySalt = Math.random().toString(36).substring(2);
-                    conn.mySalt = mySalt; // Store locally
+                    conn.salt = Math.random().toString(36).substring(2);
                     
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
                     document.getElementById('authReceiver').classList.remove('hidden');
                     document.getElementById('pinDisplay').innerText = myPin;
                     
-                    c.send({ type: 'HANDSHAKE_INIT', salt: mySalt });
+                    c.send({ type: 'HELLO', salt: conn.salt });
                 });
                 setupData();
             });
@@ -167,133 +144,130 @@
 
         function setupData() {
             conn.on('data', async (d) => {
-                // 1. Handshake & Key Gen
-                if (d.type === 'HANDSHAKE_INIT') {
-                    // Sender received Receiver's Salt
-                    conn.partnerSalt = d.salt;
-                    conn.mySalt = Math.random().toString(36).substring(2); // Sender Salt
-                    
+                // Handshake
+                if (d.type === 'HELLO') {
+                    conn.pSalt = d.salt; conn.salt = Math.random().toString(36).substring(2);
                     document.getElementById('screenConnect').classList.add('hidden');
                     document.getElementById('screenAuth').classList.remove('hidden');
                     document.getElementById('authSender').classList.remove('hidden');
                 }
-
-                if (d.type === 'PIN_VERIFY') {
-                    // Receiver checks PIN
+                if (d.type === 'PIN') {
                     if (d.pin === myPin) {
-                        conn.partnerSalt = d.salt; // Get Sender Salt
-                        // Derive Key
-                        sessionKey = await deriveSessionKey(myPin, conn.mySalt, conn.partnerSalt);
-                        conn.send({ type: 'AUTH_OK' });
-                        showTransfer();
-                    } else {
-                        conn.send({ type: 'AUTH_FAIL' });
-                        alert('Falscher PIN'); location.reload();
-                    }
+                        sessionKey = await deriveSessionKey(myPin, conn.salt, d.salt);
+                        conn.send({ type: 'OK' });
+                        showTrans();
+                    } else { alert('Falsch'); location.reload(); }
                 }
-
-                if (d.type === 'AUTH_OK') {
-                    // Sender derives key (needs PIN input value)
+                if (d.type === 'OK') {
                     const p = document.getElementById('inputPin').value;
-                    sessionKey = await deriveSessionKey(p, conn.partnerSalt, conn.mySalt);
-                    showTransfer();
+                    sessionKey = await deriveSessionKey(p, conn.pSalt, conn.salt);
+                    showTrans();
                 }
 
-                // 2. Encrypted Data
-                if (d.type === 'ENCRYPTED_FILE') {
-                    receiveEncryptedFile(d);
+                // Chunked File Handling
+                if (d.type === 'FILE_START') {
+                    incomingFile = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime };
+                    updateProgress(0, "Empfange " + d.name + "...");
+                }
+                if (d.type === 'FILE_CHUNK') {
+                    incomingFile.buffer.push(d.data); // Store encrypted chunk
+                    incomingFile.received += d.data.byteLength;
+                    
+                    const pct = Math.round((incomingFile.received / incomingFile.total) * 100);
+                    updateProgress(pct, `Empfange... ${pct}%`);
+
+                    if (incomingFile.received >= incomingFile.total) {
+                        assembleAndDecrypt();
+                    }
                 }
             });
         }
 
-        function submitPin() {
-            const p = document.getElementById('inputPin').value;
-            // Send PIN + My Salt to Receiver
-            conn.send({ type: 'PIN_VERIFY', pin: p, salt: conn.mySalt });
-        }
-
-        function showTransfer() {
+        function submitPin() { conn.send({ type: 'PIN', pin: document.getElementById('inputPin').value, salt: conn.salt }); }
+        function showTrans() { 
             document.getElementById('screenAuth').classList.add('hidden');
             document.getElementById('screenTransfer').classList.remove('hidden');
             setStatus('Sicher Verbunden', 'secure');
         }
 
-        // --- SENDING (Auto-Encrypt) ---
-        async function processAndSend() {
-            const files = document.getElementById('files').files;
-            const compress = document.getElementById('optCompress').checked;
-            const boost = document.getElementById('optBoost').checked;
-
-            document.getElementById('progress').classList.remove('hidden');
-
-            for (let f of files) {
-                let blob = f;
-                
-                // Image Opt
-                if (f.type.startsWith('image/') && (compress || boost)) {
-                    try {
-                        const bmp = await createImageBitmap(f);
-                        const cvs = document.createElement('canvas');
-                        cvs.width = bmp.width; cvs.height = bmp.height;
-                        const ctx = cvs.getContext('2d');
-                        if (boost) {
-                            ctx.filter = 'contrast(1.1) saturate(1.1)';
-                            ctx.drawImage(bmp,0,0);
-                            blob = await new Promise(r=>cvs.toBlob(r,'image/png'));
-                        } else {
-                            ctx.drawImage(bmp,0,0);
-                            blob = await new Promise(r=>cvs.toBlob(r,'image/jpeg',0.6));
-                        }
-                    } catch(e){}
-                }
-
-                // ENCRYPT
-                const buffer = await blob.arrayBuffer();
-                const iv = crypto.getRandomValues(new Uint8Array(12));
-                const encrypted = await crypto.subtle.encrypt(
-                    { name: "AES-GCM", iv: iv },
-                    sessionKey,
-                    buffer
-                );
-
-                // Pack: IV + DATA
-                conn.send({
-                    type: 'ENCRYPTED_FILE',
-                    name: f.name,
-                    mime: blob.type,
-                    iv: iv,
-                    data: encrypted
-                });
-            }
-            document.getElementById('progress').classList.add('hidden');
-            alert("Verschlüsselt gesendet!");
+        function updateProgress(pct, txt) {
+            document.getElementById('statusArea').classList.remove('hidden');
+            document.getElementById('pBar').style.width = pct + '%';
+            document.getElementById('statusPercent').innerText = pct + '%';
+            document.getElementById('statusText').innerText = txt;
         }
 
-        // --- RECEIVING (Auto-Decrypt) ---
-        async function receiveEncryptedFile(d) {
+        // --- SENDING (CHUNKED) ---
+        async function handleFileSelection() {
+            const files = document.getElementById('files').files;
+            
+            for (let f of files) {
+                // 1. Encrypt Whole File first (Simpler logic, safer E2EE)
+                updateProgress(0, "Verschlüssele " + f.name);
+                const raw = await f.arrayBuffer();
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, sessionKey, raw);
+                
+                // Pack IV + Data
+                const packed = new Uint8Array(iv.length + encrypted.byteLength);
+                packed.set(iv);
+                packed.set(new Uint8Array(encrypted), iv.length);
+                
+                // 2. Chunk & Send
+                conn.send({ type: 'FILE_START', name: f.name, size: packed.byteLength, mime: f.type });
+                
+                let offset = 0;
+                while (offset < packed.byteLength) {
+                    const chunk = packed.slice(offset, offset + CHUNK_SIZE);
+                    conn.send({ type: 'FILE_CHUNK', data: chunk });
+                    offset += CHUNK_SIZE;
+                    
+                    const pct = Math.round((offset / packed.byteLength) * 100);
+                    updateProgress(pct, `Sende ${pct}%`);
+                    
+                    // Tiny pause to prevent freeze
+                    await new Promise(r => setTimeout(r, 10));
+                }
+            }
+            updateProgress(100, "Fertig!");
+            setTimeout(() => document.getElementById('statusArea').classList.add('hidden'), 2000);
+        }
+
+        // --- RECEIVING (ASSEMBLE) ---
+        async function assembleAndDecrypt() {
+            updateProgress(100, "Entschlüssele...");
+            
+            // Merge chunks
+            const fullData = new Uint8Array(incomingFile.total);
+            let offset = 0;
+            for (let chunk of incomingFile.buffer) {
+                fullData.set(new Uint8Array(chunk), offset);
+                offset += chunk.byteLength;
+            }
+
             try {
                 // Decrypt
+                const iv = fullData.slice(0, 12);
+                const data = fullData.slice(12);
+                
                 const decrypted = await crypto.subtle.decrypt(
-                    { name: "AES-GCM", iv: new Uint8Array(d.iv) },
+                    { name: "AES-GCM", iv: iv },
                     sessionKey,
-                    d.data
+                    data
                 );
 
-                // Display
-                const blob = new Blob([decrypted], {type: d.mime});
+                // Show
+                const blob = new Blob([decrypted], {type: incomingFile.mime});
                 const url = URL.createObjectURL(blob);
                 
                 const div = document.createElement('div');
                 div.className = 'file-item';
-                div.innerHTML = `
-                    <div><strong>${d.name}</strong><br><small>Sicher empfangen</small></div>
-                    <a href="${url}" download="${d.name}" style="background:#805ad5; color:white; padding:8px 15px; text-decoration:none; border-radius:5px;">💾 Speichern</a>
-                `;
+                div.innerHTML = `<div><strong>${incomingFile.name}</strong><br><small>Sicher empfangen</small></div><a href="${url}" download="${incomingFile.name}" style="background:#805ad5; color:white; padding:8px 15px; text-decoration:none; border-radius:5px;">💾 Speichern</a>`;
                 document.getElementById('fileList').prepend(div);
                 
             } catch (e) {
                 console.error(e);
-                alert("Entschlüsselungs-Fehler! Daten manipuliert?");
+                alert("Entschlüsselung fehlgeschlagen!");
             }
         }
     </script>

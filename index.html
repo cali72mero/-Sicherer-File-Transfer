@@ -2,334 +2,248 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sicherer File Transfer - V6 (Firewall Fix)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Transfer V7 (iPhone Fix)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #eef2f5; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h2 { margin: 0 0 15px 0; color: #2d3748; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; box-sizing: border-box; text-align: center; }
-        button { width: 100%; padding: 14px; background: #4299e1; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        button.green { background: #48bb78; }
-        button.red { background: #f56565; }
-        button.orange { background: #ed8936; }
+        body { font-family: -apple-system, sans-serif; background: #fff; padding: 15px; color: #333; max-width: 500px; margin: 0 auto; }
+        .box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 1.2rem; }
+        input { font-size: 16px; padding: 10px; width: 100%; box-sizing: border-box; border: 2px solid #ddd; border-radius: 5px; -webkit-appearance: none; }
+        button { font-size: 16px; width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; margin-top: 10px; font-weight: bold; }
+        button.red { background: #dc3545; }
+        button.green { background: #28a745; }
+        .log { background: #f8f9fa; font-family: monospace; font-size: 11px; padding: 10px; border: 1px solid #eee; height: 100px; overflow-y: scroll; margin-bottom: 15px; }
         .hidden { display: none; }
-        .log-box { background: #2d3748; color: #a0aec0; padding: 10px; font-family: monospace; font-size: 11px; height: 120px; overflow-y: scroll; border-radius: 8px; margin-top: 20px; }
-        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
-        .status-badge.online { background: #c6f6d5; color: #22543d; }
-        .status-badge.offline { background: #fed7d7; color: #822727; }
-        .error-msg { background: #fff5f5; border: 1px solid #fc8181; color: #c53030; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 0.9em; display: none; }
+        .status-bar { padding: 10px; text-align: center; background: #eee; margin-bottom: 15px; border-radius: 5px; font-weight: bold; }
+        .status-bar.green { background: #d4edda; color: #155724; }
+        .status-bar.red { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
 
-    <!-- Header -->
-    <div style="text-align:center; margin-bottom:20px;">
-        <h2>🛡️ Transfer V6</h2>
-        <div id="connectionStatus" class="status-badge offline">Offline</div>
+    <h2 style="text-align:center">📱 Transfer V7</h2>
+    
+    <!-- Status & Log (Always visible for debugging) -->
+    <div id="status" class="status-bar red">Nicht verbunden</div>
+    <div id="debug" class="log">Log startet...</div>
+
+    <!-- Screen 1: Login -->
+    <div id="screenLogin" class="box">
+        <h3>1. Wer bist du?</h3>
+        <p style="font-size:0.9em; color:#666;">Gib einen Namen ein (z.B. handy).</p>
+        
+        <input type="text" id="myId" placeholder="Name" onkeyup="clean(this)">
+        <button onclick="startPeer()">Starten</button>
+        <button onclick="randomId()" style="background:#6c757d; margin-top:5px;">Zufalls-Name generieren</button>
+        
+        <p style="font-size:0.8em; color:#dc3545; margin-top:10px;">⚠️ Wichtig: Wenn es beim "Starten" hängt, schalte WLAN aus und nutze mobile Daten!</p>
     </div>
 
-    <!-- Screen 1: Setup -->
-    <div id="screenSetup" class="card">
-        <h2>1. Einrichtung</h2>
-        <p style="color:#718096; font-size:0.9em; margin-bottom:15px;">Wähle einen Namen für dieses Gerät.</p>
-        <input type="text" id="myName" placeholder="z.B. handy1" onkeyup="cleanInput(this)">
-        
-        <button onclick="startMyPeer()">🚀 Online gehen</button>
-        <button class="orange" onclick="runNetworkTest()" style="font-size: 0.9em; padding: 10px;">🛠️ Netzwerk testen</button>
-        
-        <div id="networkTestResult" style="margin-top:10px; font-size:0.85em; color:#666;"></div>
+    <!-- Screen 2: Connect -->
+    <div id="screenConnect" class="box hidden">
+        <h3>2. Verbinden</h3>
+        <p>Dein Name: <b id="displayName" style="color:#007bff">...</b></p>
+        <hr>
+        <p>Partner Name:</p>
+        <input type="text" id="partnerId" placeholder="z.B. pc" onkeyup="clean(this)">
+        <button class="green" onclick="connect()" id="btnConnect">Verbinden</button>
     </div>
 
-    <!-- Screen 2: Dashboard -->
-    <div id="screenDashboard" class="card hidden">
-        <div style="text-align:center; margin-bottom:20px;">
-            <span style="color:#718096">Dein Name:</span><br>
-            <strong id="displayName" style="font-size:1.4em; color:#4299e1;">...</strong>
+    <!-- Screen 3: PIN -->
+    <div id="screenPin" class="box hidden">
+        <h3 id="pinTitle">🔒 PIN Check</h3>
+        
+        <div id="pinShow" class="hidden" style="text-align:center; font-size:40px; background:#eee; padding:10px; letter-spacing:5px; font-weight:bold;">
+            ----
         </div>
 
-        <div style="border-top: 2px dashed #e2e8f0; margin: 20px 0;"></div>
-
-        <h3>Verbinden</h3>
-        <p style="color:#718096; font-size:0.9em;">Name des Partners:</p>
-        <input type="text" id="partnerName" placeholder="Name des Partners" onkeyup="cleanInput(this)">
-        <button class="green" onclick="connectToPartner()" id="btnConnect">🔗 Verbinden</button>
+        <div id="pinEnter" class="hidden">
+            <input type="tel" id="inputPin" placeholder="PIN" style="font-size:30px; text-align:center; letter-spacing:5px;">
+            <button class="green" onclick="sendPin()">Senden</button>
+        </div>
         
-        <div id="connectError" class="error-msg"></div>
+        <button class="red" onclick="location.reload()">Abbrechen</button>
     </div>
 
-    <!-- Screen 3: PIN Auth -->
-    <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center">🔒 Sicherheit</h2>
+    <!-- Screen 4: Files -->
+    <div id="screenFiles" class="box hidden">
+        <h3 style="color:#28a745">✅ Verbunden</h3>
         
-        <!-- Receiver View -->
-        <div id="viewReceiver" class="hidden">
-            <p style="text-align:center">Anfrage von <strong id="incomingPeerName">...</strong></p>
-            <p style="text-align:center; font-size:0.9em;">Zeige ihm diesen Code:</p>
-            <div id="myPinDisplay" style="font-size: 42px; letter-spacing: 8px; font-weight: 800; text-align: center; background: #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0;">----</div>
+        <div style="border:2px dashed #28a745; padding:15px; text-align:center; margin-bottom:15px; background:#f0fff4;">
+            <input type="file" id="files" multiple>
+            <button class="green" onclick="sendFiles()">Senden</button>
         </div>
-
-        <!-- Sender View -->
-        <div id="viewSender" class="hidden">
-            <p style="text-align:center">Verbunden! Warte auf Code...</p>
-            <p style="text-align:center; font-size:0.9em;">Gib den Code vom Partner ein:</p>
-            <input type="tel" id="inputPin" placeholder="0000" maxlength="4" style="font-size:32px; letter-spacing:5px;">
-            <button class="green" onclick="submitPin()">Bestätigen</button>
-        </div>
-
-        <button class="red" onclick="location.reload()" style="margin-top:20px;">Abbrechen</button>
-    </div>
-
-    <!-- Screen 4: Transfer -->
-    <div id="screenTransfer" class="card hidden">
-        <h2 style="text-align:center; color:#48bb78;">✅ Bereit</h2>
         
-        <div style="background:#f0fff4; padding:20px; border:2px dashed #48bb78; border-radius:10px; text-align:center; margin-bottom:20px;">
-            <p style="margin-bottom:10px;">Dateien senden:</p>
-            <input type="file" id="fileInput" multiple>
-            <button class="green" onclick="uploadFiles()">Senden</button>
-        </div>
-
-        <h3>Empfangen:</h3>
-        <div id="fileList" style="margin-top:10px;"></div>
-        <button class="red" onclick="location.reload()" style="margin-top:30px;">Trennen</button>
+        <div id="fileList"></div>
     </div>
-
-    <div id="debug" class="log-box">Log startet...</div>
 
     <script>
-        // --- Configuration V6 ---
-        const PREFIX = 'sft-v6-fix-';
-        
-        // Huge list of free STUN servers to bypass firewalls
-        const ICE_SERVERS = [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' },
-            { urls: 'stun:stun.ekiga.net' },
-            { urls: 'stun:stun.ideasip.com' },
-            { urls: 'stun:stun.schlund.de' },
-            { urls: 'stun:stun.voiparound.com' },
-            { urls: 'stun:stun.voipbuster.com' },
-            { urls: 'stun:stun.voipstunt.com' },
-            { urls: 'stun:stun.voxgratia.org' }
-        ];
+        const PRE = 'sft-v7-ios-';
+        let peer, conn, myPin;
+        let myName = '';
 
-        let peer, conn, myPin, myId;
-
-        // --- Utils ---
-        function log(msg) {
+        function log(m) {
             const d = document.getElementById('debug');
-            const time = new Date().toLocaleTimeString().split(' ')[0];
-            d.innerHTML = `<div>[${time}] ${msg}</div>` + d.innerHTML;
+            d.innerHTML = `<div>${m}</div>` + d.innerHTML;
         }
-        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
-        function setStatus(cls, msg) {
-            const el = document.getElementById('connectionStatus');
-            el.className = 'status-badge ' + cls;
-            el.innerText = msg;
-        }
-        function showError(msg) {
-            const el = document.getElementById('connectError');
-            el.innerText = msg;
-            el.style.display = 'block';
-            setTimeout(() => el.style.display = 'none', 8000);
+        function clean(e) { e.value = e.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+        function setStatus(c, t) { const s = document.getElementById('status'); s.className = 'status-bar ' + c; s.innerText = t; }
+
+        function randomId() {
+            document.getElementById('myId').value = 'user' + Math.floor(Math.random()*9999);
         }
 
-        // --- 1. Network Test ---
-        function runNetworkTest() {
-            const res = document.getElementById('networkTestResult');
-            res.innerHTML = "⏳ Teste Verbindung zu Google Servern...";
+        // --- 1. Start ---
+        function startPeer() {
+            const name = document.getElementById('myId').value;
+            if (name.length < 2) return alert('Name zu kurz');
             
-            const p = new Peer('test-' + Math.floor(Math.random()*10000), {
-                config: { iceServers: ICE_SERVERS }
-            });
+            myName = name;
+            log('Verbinde zu Server...');
+            setStatus('red', 'Verbinde...');
             
-            p.on('open', (id) => {
-                res.innerHTML = "✅ Erfolg! Dein Internet erlaubt P2P-Verbindungen.";
-                p.destroy();
-            });
-            
-            p.on('error', (err) => {
-                res.innerHTML = "❌ Fehler: " + err.type + ". Firewall blockiert wahrscheinlich.";
-                console.error(err);
-            });
-            
-            setTimeout(() => {
-                if(!p.destroyed && !p.open) {
-                    res.innerHTML = "⚠️ Warnung: Verbindung sehr langsam oder blockiert.";
-                    p.destroy();
+            // Setup Timeout Warning
+            const timer = setTimeout(() => {
+                if (!peer || !peer.open) {
+                    alert("Verbindung zum Server fehlgeschlagen! \n\nBITTE WLAN AUSSCHALTEN und mobile Daten nutzen.");
+                    log('TIMEOUT: Server antwortet nicht.');
                 }
-            }, 5000);
-        }
+            }, 6000);
 
-        // --- 2. Start Peer ---
-        function startMyPeer() {
-            const name = document.getElementById('myName').value;
-            if (name.length < 2) return alert("Name zu kurz");
-            
-            myId = name;
-            const fullId = PREFIX + name;
-            
-            log('Verbinde mit erweitertem Server-Setup...');
-            peer = new Peer(fullId, {
-                debug: 2,
-                config: { iceServers: ICE_SERVERS }
+            peer = new Peer(PRE + name, {
+                debug: 1,
+                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
             });
 
             peer.on('open', (id) => {
+                clearTimeout(timer);
                 log('✅ Online als: ' + name);
-                setStatus('online', 'Online');
-                document.getElementById('screenSetup').classList.add('hidden');
-                document.getElementById('screenDashboard').classList.remove('hidden');
+                setStatus('green', 'Online: ' + name);
+                document.getElementById('screenLogin').classList.add('hidden');
+                document.getElementById('screenConnect').classList.remove('hidden');
                 document.getElementById('displayName').innerText = name;
             });
 
             peer.on('error', (err) => {
-                log('❌ ' + err.type);
-                if (err.type === 'unavailable-id') alert("Name belegt! Wähle einen anderen.");
-                else if (err.type === 'peer-unavailable') {
-                    showError("Partner nicht gefunden! Ist er online?");
-                    document.getElementById('btnConnect').disabled = false;
-                    document.getElementById('btnConnect').innerText = "🔗 Verbinden";
-                }
-                else showError("Fehler: " + err.type);
+                clearTimeout(timer);
+                log('FEHLER: ' + err.type);
+                if (err.type === 'unavailable-id') alert('Name belegt! Nutze einen anderen.');
+                else alert('Fehler: ' + err.type);
             });
 
-            // RECEIVER LOGIC
+            // Receiver Logic
             peer.on('connection', (c) => {
-                log('⚡ Eingehende Verbindung...');
-                document.getElementById('screenDashboard').classList.add('hidden');
-                
+                log('⚡ Anruf von: ' + c.peer);
                 c.on('open', () => {
-                    log('✅ Kanal offen! Sende Handshake...');
-                    myPin = Math.floor(1000 + Math.random() * 9000).toString();
-                    c.send({ type: 'HANDSHAKE_HELLO' });
-                    
-                    document.getElementById('screenAuth').classList.remove('hidden');
-                    document.getElementById('viewReceiver').classList.remove('hidden');
-                    document.getElementById('myPinDisplay').innerText = myPin;
-                    document.getElementById('incomingPeerName').innerText = c.peer.replace(PREFIX, '');
-                    
+                    log('Verbindung steht. Generiere PIN...');
                     conn = c;
-                    setupDataHandler();
+                    setupData();
+                    
+                    // I am Receiver -> Show PIN
+                    myPin = Math.floor(1000 + Math.random()*9000).toString();
+                    conn.send({ t: 'HELLO' });
+                    
+                    document.getElementById('screenConnect').classList.add('hidden');
+                    document.getElementById('screenPin').classList.remove('hidden');
+                    document.getElementById('pinShow').classList.remove('hidden');
+                    document.getElementById('pinShow').innerText = myPin;
                 });
             });
         }
 
-        // --- 3. Connect (Sender) ---
-        function connectToPartner() {
-            const partner = document.getElementById('partnerName').value;
-            if (!partner) return;
+        // --- 2. Connect ---
+        function connect() {
+            const p = document.getElementById('partnerId').value;
+            if (!p) return;
             
-            const fullPartner = PREFIX + partner;
-            log('⏳ Suche ' + partner + '...');
-            
+            log('Rufe an: ' + p);
             const btn = document.getElementById('btnConnect');
+            btn.innerText = 'Verbinde...';
             btn.disabled = true;
-            btn.innerText = "Verbinde...";
 
-            const c = peer.connect(fullPartner, {
-                reliable: true,
-                serialization: 'binary' // Better for files
-            });
-
-            c.on('open', () => {
-                log('✅ Kanal offen! Warte auf Antwort...');
-                conn = c;
-                setupDataHandler();
-            });
+            const c = peer.connect(PRE + p);
             
-            // Critical Timeout Fix
+            c.on('open', () => {
+                log('Verbunden! Warte auf PIN...');
+                conn = c;
+                setupData();
+            });
+
+            c.on('error', (e) => {
+                log('Verbindungsfehler');
+                alert('Verbindung fehlgeschlagen. Ist der Partner online?');
+                location.reload();
+            });
+
             setTimeout(() => {
-                if (!conn || !conn.open) {
-                    log('⚠️ Timeout! Versuche es erneut.');
-                    showError("Zeitüberschreitung! Firewall blockiert eventuell. Versuche, beide Geräte in ein anderes WLAN oder Hotspot zu bringen.");
-                    btn.disabled = false;
-                    btn.innerText = "🔗 Verbinden";
+                if(!conn) {
+                    alert('Keine Antwort. Firewall?');
+                    location.reload();
                 }
-            }, 8000);
+            }, 10000);
         }
 
-        // --- 4. Protocol ---
-        function setupDataHandler() {
-            conn.on('data', (data) => {
-                log('📥 Daten: ' + data.type);
-
+        // --- 3. Data ---
+        function setupData() {
+            conn.on('data', (d) => {
                 // Handshake
-                if (data.type === 'HANDSHAKE_HELLO') {
-                    document.getElementById('screenDashboard').classList.add('hidden');
-                    document.getElementById('screenAuth').classList.remove('hidden');
-                    document.getElementById('viewSender').classList.remove('hidden');
+                if (d.t === 'HELLO') {
+                    // I am Sender -> Enter PIN
+                    document.getElementById('screenConnect').classList.add('hidden');
+                    document.getElementById('screenPin').classList.remove('hidden');
+                    document.getElementById('pinEnter').classList.remove('hidden');
                 }
-
+                
                 // Auth
-                if (data.type === 'AUTH_PIN') {
-                    if (data.pin === myPin) {
-                        conn.send({ type: 'AUTH_OK' });
-                        showTransfer();
+                if (d.t === 'PIN_CHECK') {
+                    if (d.pin === myPin) {
+                        conn.send({ t: 'PIN_OK' });
+                        showFiles();
                     } else {
-                        conn.send({ type: 'AUTH_FAIL' });
-                        alert("Falscher Code!");
+                        conn.send({ t: 'PIN_FAIL' });
+                        alert('Falscher PIN');
                         location.reload();
                     }
                 }
-
-                if (data.type === 'AUTH_OK') showTransfer();
-                if (data.type === 'AUTH_FAIL') { alert("Falscher Code!"); location.reload(); }
+                
+                if (d.t === 'PIN_OK') showFiles();
+                if (d.t === 'PIN_FAIL') { alert('Falscher PIN'); location.reload(); }
 
                 // File
-                if (data.type === 'FILE_CHUNK') receiveFile(data);
+                if (d.file) {
+                    log('Datei: ' + d.name);
+                    const b = new Blob([d.file]);
+                    const u = URL.createObjectURL(b);
+                    const el = document.createElement('div');
+                    el.innerHTML = `<div style="padding:10px; border-bottom:1px solid #ddd">
+                        <b>${d.name}</b><br>
+                        <a href="${u}" download="${d.name}" style="color:green">Download</a>
+                    </div>`;
+                    document.getElementById('fileList').prepend(el);
+                }
             });
-
-            conn.on('close', () => { alert("Verbindung getrennt!"); location.reload(); });
-        }
-
-        function submitPin() {
-            const pin = document.getElementById('inputPin').value;
-            conn.send({ type: 'AUTH_PIN', pin: pin });
-        }
-
-        function showTransfer() {
-            document.getElementById('screenAuth').classList.add('hidden');
-            document.getElementById('screenTransfer').classList.remove('hidden');
-        }
-
-        // --- 5. File Transfer ---
-        function uploadFiles() {
-            const files = document.getElementById('fileInput').files;
-            Array.from(files).forEach(f => {
-                log('Sende: ' + f.name);
-                conn.send({
-                    type: 'FILE_CHUNK',
-                    name: f.name,
-                    mime: f.type,
-                    blob: f,
-                    size: f.size
-                });
-            });
-            alert("Dateien gesendet!");
-        }
-
-        function receiveFile(data) {
-            log('Erhalten: ' + data.name);
-            const blob = new Blob([data.blob], { type: data.mime });
-            const url = URL.createObjectURL(blob);
             
-            const div = document.createElement('div');
-            div.style.padding = "10px";
-            div.style.borderBottom = "1px solid #eee";
-            div.innerHTML = `
-                <strong>${data.name}</strong> (${(data.size/1024/1024).toFixed(2)} MB)<br>
-                <a href="${url}" download="${data.name}" 
-                   style="display:inline-block; margin-top:5px; padding:5px 15px; background:#48bb78; color:white; text-decoration:none; border-radius:4px;">
-                   💾 Speichern
-                </a>
-            `;
-            document.getElementById('fileList').prepend(div);
+            conn.on('close', () => { alert('Getrennt'); location.reload(); });
+        }
+
+        function sendPin() {
+            const p = document.getElementById('inputPin').value;
+            conn.send({ t: 'PIN_CHECK', pin: p });
+        }
+
+        function showFiles() {
+            document.getElementById('screenPin').classList.add('hidden');
+            document.getElementById('screenFiles').classList.remove('hidden');
+        }
+
+        function sendFiles() {
+            const fs = document.getElementById('files').files;
+            Array.from(fs).forEach(f => {
+                log('Sende: ' + f.name);
+                conn.send({ file: f, name: f.name });
+            });
+            alert('Gesendet');
         }
     </script>
 </body>

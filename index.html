@@ -3,57 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer V24 (Memory)</title>
+    <title>Transfer V25 (Ultimate)</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #0f172a; color: #cbd5e1; padding: 15px; max-width: 600px; margin: 0 auto; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #334155; }
-        h2 { margin: 0 0 10px 0; color: #38bdf8; font-size: 1.4rem; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; background: #0f172a; border: 2px solid #334155; border-radius: 8px; color: white; text-align: center; font-size: 1.1rem; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; }
-        .btn-blue { background: #0ea5e9; color: white; }
-        .btn-green { background: #22c55e; color: white; }
-        .btn-zip { background: #f59e0b; color: black; margin-bottom: 15px; }
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #cbd5e1; --accent: #38bdf8; --border: #334155;
+            --btn-blue: #0ea5e9; --btn-green: #22c55e; --font: -apple-system, sans-serif;
+        }
+        [data-theme="light"] {
+            --bg: #f1f5f9; --card: #ffffff; --text: #334155; --accent: #0284c7; --border: #e2e8f0;
+            --btn-blue: #0284c7; --btn-green: #16a34a;
+        }
+        [data-theme="matrix"] {
+            --bg: #000000; --card: #111111; --text: #00ff41; --accent: #00ff41; --border: #003b00;
+            --btn-blue: #003b00; --btn-green: #008f11; --font: 'Courier New', monospace;
+        }
+
+        body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 15px; max-width: 600px; margin: 0 auto; transition: 0.3s; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h2 { margin: 0 0 10px 0; color: var(--accent); font-size: 1.4rem; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font); box-sizing: border-box; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; color: white; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        
+        .btn-blue { background: var(--btn-blue); }
+        .btn-green { background: var(--btn-green); }
+        .btn-icon { width: auto; padding: 8px 15px; font-size: 1rem; margin: 0 5px; }
+
         .hidden { display: none !important; }
         
-        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; background: #334155; margin-bottom: 15px; display: inline-block; }
-        .secure { background: #22c55e; color: #022c22; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; background: var(--border); margin-bottom: 15px; display: inline-block; }
+        .secure { background: var(--btn-green); color: #000; }
 
-        .pin-display { font-size: 2.5rem; letter-spacing: 5px; font-family: monospace; text-align: center; background: #0f172a; padding: 15px; border-radius: 10px; margin: 15px 0; color: #38bdf8; border: 2px dashed #334155; }
+        /* Tabs */
+        .tabs { display: flex; margin-bottom: 15px; gap: 10px; }
+        .tab { flex: 1; padding: 10px; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; opacity: 0.7; }
+        .tab.active { opacity: 1; border-color: var(--accent); color: var(--accent); font-weight: bold; }
 
-        .progress-bar-bg { background: #334155; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
-        .progress-bar-fill { background: #22c55e; height: 100%; width: 0%; transition: width 0.1s linear; }
-        
-        .file-list { max-height: 500px; overflow-y: auto; }
-        .file-item { padding: 10px; background: #1e293b; margin-top: 5px; border-radius: 6px; display: flex; align-items: center; border-left: 3px solid #38bdf8; font-size: 0.9rem; }
-        .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; background: #0f172a; }
-        .thumb-vid { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #334155; border-radius: 4px; margin-right: 10px; cursor: pointer; font-size: 1.5rem; }
+        /* Chat */
+        .chat-box { height: 300px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; word-break: break-word; }
+        .msg.me { align-self: flex-end; background: var(--btn-blue); color: white; }
+        .msg.other { align-self: flex-start; background: var(--card); border: 1px solid var(--border); }
 
-        #lightbox { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        #lbImg { max-width: 95%; max-height: 80%; object-fit: contain; }
-        #lbVid { max-width: 95%; max-height: 80%; }
-        .lb-close { position: absolute; top: 20px; right: 20px; color: white; font-size: 2rem; cursor: pointer; background: none; border: none; }
-        .lb-controls { margin-top: 15px; display: flex; gap: 10px; }
+        /* File List */
+        .file-list { max-height: 400px; overflow-y: auto; }
+        .file-item { padding: 10px; background: var(--card); margin-top: 5px; border-radius: 6px; display: flex; align-items: center; border-left: 3px solid var(--accent); font-size: 0.9rem; border: 1px solid var(--border); }
+        .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; background: var(--bg); }
         
-        details { margin-bottom: 15px; }
-        summary { cursor: pointer; color: #94a3b8; font-weight: bold; padding: 10px; background: #0f172a; border-radius: 8px; list-style: none; }
-        
-        .settings-box { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-top:5px; }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #334155; }
-        .setting-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        
+        /* Settings */
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
         .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
-        input:checked + .slider { background-color: #38bdf8; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
+        input:checked + .slider { background-color: var(--accent); }
         input:checked + .slider:before { transform: translateX(22px); background: white; width: 18px; height: 18px; bottom: 3px; left: 3px; border-radius: 50%; position: absolute; content: ""; }
     </style>
 </head>
 <body>
 
     <div style="text-align:center;">
-        <h2 style="margin-bottom:5px;">💾 V24 Memory</h2>
+        <h2 style="margin-bottom:5px;">🌐 Transfer V25</h2>
         <div id="statusBadge" class="status-badge">Bereit</div>
     </div>
 
@@ -61,45 +72,96 @@
     <div id="screenSetup" class="card">
         <h2>Identität</h2>
         <input type="text" id="myName" placeholder="Gerätename" onkeyup="cleanInput(this)">
+        
+        <div class="setting-row">
+            <span>🎨 Design</span>
+            <select id="themeSel" onchange="applyTheme()" style="width:100px; padding:5px;">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="matrix">Hacker</option>
+            </select>
+        </div>
+
         <button class="btn-blue" onclick="startApp()">Starten</button>
     </div>
 
     <!-- CONNECT -->
     <div id="screenConnect" class="card hidden">
-        <p style="text-align:center;">Angemeldet: <strong id="dispName" style="color:#38bdf8">...</strong></p>
-        <hr style="border-color:#334155; margin:15px 0;">
+        <p style="text-align:center;">Ich bin: <strong id="dispName" style="color:var(--accent)">...</strong></p>
+        <button class="btn-blue" onclick="shareLink()" style="margin-bottom:15px; font-size:0.9rem;">🔗 Link kopieren</button>
+        <hr style="border-color:var(--border); margin:15px 0;">
         <input type="text" id="partnerName" placeholder="Partner Name" onkeyup="cleanInput(this)">
         <button class="btn-green" onclick="connect()">Verbinden</button>
     </div>
 
     <!-- AUTH -->
     <div id="screenAuth" class="card hidden">
-        <h2 style="text-align:center;">🔑 Authentifizierung</h2>
+        <h2 style="text-align:center;">🔑 Auth</h2>
         <div id="authReceiver" class="hidden">
-            <div class="pin-display"><span id="pinDisplayVal">----</span></div>
+            <div style="font-size:2.5rem; letter-spacing:5px; text-align:center; color:var(--accent); font-family:monospace; margin:20px;">
+                <span id="pinDisplayVal">----</span>
+            </div>
         </div>
         <div id="authSender" class="hidden">
-            <input type="tel" id="inputPin" placeholder="PIN" style="font-size:2rem; letter-spacing:5px;">
+            <input type="tel" id="inputPin" placeholder="PIN" style="font-size:2rem; letter-spacing:5px; text-align:center;">
             <button class="btn-green" onclick="submitPin()">OK</button>
         </div>
     </div>
 
-    <!-- TRANSFER -->
-    <div id="screenTransfer" class="card hidden">
-        
-        <details id="detailsSettings">
-            <summary>⚙️ Einstellungen (Gespeichert)</summary>
-            <div class="settings-box">
+    <!-- MAIN APP AREA (Tabs) -->
+    <div id="screenMain" class="hidden">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('files')">📂 Dateien</div>
+            <div class="tab" onclick="switchTab('chat')">💬 Chat</div>
+            <div class="tab" onclick="switchTab('settings')">⚙️ Optionen</div>
+        </div>
+
+        <!-- FILE TAB -->
+        <div id="tab-files">
+            <div class="card">
+                <div style="text-align:center; padding:20px; border:2px dashed var(--border); border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
+                    <span style="font-size:1.5rem;">📂</span> <strong>Dateien wählen</strong>
+                </div>
+                <input type="file" id="files" multiple style="display:none;" onchange="startBulkUpload()">
+                
+                <div id="bulkArea" class="hidden" style="margin-top:10px;">
+                    <div style="font-size:0.8rem; color:var(--text);" id="currentFileName">Sende...</div>
+                    <div style="background:var(--border); height:6px; border-radius:3px; margin-top:5px; overflow:hidden;">
+                        <div id="pBar" style="background:var(--btn-green); height:100%; width:0%;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="btn-blue hidden" id="btnZip" onclick="downloadAllZip()" style="background:#f59e0b; color:black; margin-bottom:10px;">📦 Alles als ZIP</button>
+            <div id="fileList" class="file-list"></div>
+        </div>
+
+        <!-- CHAT TAB -->
+        <div id="tab-chat" class="hidden">
+            <div class="chat-box" id="chatBox"></div>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="chatInput" placeholder="Nachricht..." style="margin:0;">
+                <button class="btn-blue" onclick="sendChat()" style="width:auto; margin:0;">➤</button>
+            </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div id="tab-settings" class="hidden">
+            <div class="card">
                 <div class="setting-row">
                     <span>📉 Kompression</span>
-                    <select id="compressMode" style="width:100px; padding:2px;" onchange="saveSettings()">
+                    <select id="compressMode" style="width:100px;" onchange="saveSettings()">
                         <option value="smart">Smart</option>
                         <option value="off">Aus</option>
                         <option value="always">Immer</option>
                     </select>
                 </div>
                 <div class="setting-row">
-                    <span>🛡️ Integritäts-Check</span>
+                    <span>🔊 Sound</span>
+                    <label class="switch"><input type="checkbox" id="optSound" checked onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>🛡️ Integrität</span>
                     <label class="switch"><input type="checkbox" id="optIntegrity" checked onchange="saveSettings()"><span class="slider"></span></label>
                 </div>
                 <div class="setting-row">
@@ -107,87 +169,84 @@
                     <label class="switch"><input type="checkbox" id="optBurn" onchange="saveSettings()"><span class="slider"></span></label>
                 </div>
                 <div class="setting-row">
-                    <span>👻 Stealth Mode</span>
+                    <span>👻 Stealth</span>
                     <label class="switch"><input type="checkbox" id="optStealth" onchange="saveSettings()"><span class="slider"></span></label>
                 </div>
-                <div class="setting-row">
-                    <span>⏱️ Auto-Disconnect</span>
-                    <select id="autoDisc" style="width:80px; padding:2px;" onchange="saveSettings()">
-                        <option value="0">Nie</option>
-                        <option value="5">5 Min</option>
-                    </select>
-                </div>
+                <button class="btn-blue" style="background:#ef4444;" onclick="location.reload()">Verbindung Trennen</button>
             </div>
-        </details>
-
-        <div class="bulk-status hidden" id="bulkArea" style="text-align:center; margin-bottom:15px;">
-            <div style="font-size:0.9rem; color:#94a3b8;" id="currentFileName">Bereit...</div>
-            <div class="progress-bar-bg"><div id="pBar" class="progress-bar-fill"></div></div>
         </div>
-
-        <div style="text-align:center; padding:20px; border:2px dashed #334155; border-radius:10px; cursor:pointer; margin-bottom:15px;" onclick="document.getElementById('files').click()">
-            <span style="font-size:1.5rem;">📂</span> <strong>Dateien wählen</strong>
-        </div>
-        <input type="file" id="files" multiple style="display:none;" onchange="startBulkUpload()">
-        
-        <button class="btn-zip hidden" id="btnZip" onclick="downloadAllZip()">📦 Alles als ZIP herunterladen</button>
-
-        <div id="fileList" class="file-list"></div>
     </div>
 
     <!-- LIGHTBOX -->
-    <div id="lightbox" class="hidden" onclick="closeLightbox()">
-        <button class="lb-close">&times;</button>
-        <img id="lbImg" class="hidden">
-        <video id="lbVid" class="hidden" playsinline loop></video>
-        <div class="lb-controls hidden" id="vidControls" onclick="event.stopPropagation()">
-            <button onclick="toggleMute()" class="btn-blue" style="width:auto; padding:8px;">🔇/🔊 Ton</button>
-        </div>
+    <div id="lightbox" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:1000; display:flex; align-items:center; justify-content:center; flex-direction:column;" onclick="this.classList.add('hidden'); document.getElementById('lbVid').pause();">
+        <img id="lbImg" style="max-width:95%; max-height:80%;" class="hidden">
+        <video id="lbVid" style="max-width:95%; max-height:80%;" class="hidden" playsinline controls></video>
     </div>
 
     <script>
-        const PREFIX = 'sft-v24-mem-';
+        const PREFIX = 'sft-v25-ult-';
         const CHUNK_SIZE = 64 * 1024;
-        
         let peer, conn, myPin, superKey;
         let incoming = {};
         let receivedFiles = []; 
-        let discTimer = null;
 
-        // --- PERSISTENCE ---
-        function loadSettings() {
-            const s = localStorage.getItem('sft_settings');
-            if (s) {
-                const cfg = JSON.parse(s);
-                document.getElementById('compressMode').value = cfg.compress || 'smart';
-                document.getElementById('optIntegrity').checked = cfg.integrity !== false;
-                document.getElementById('optBurn').checked = cfg.burn || false;
-                document.getElementById('optStealth').checked = cfg.stealth || false;
-                document.getElementById('autoDisc').value = cfg.disc || '0';
-                if(cfg.name) document.getElementById('myName').value = cfg.name;
-            }
+        // --- THEME & SETTINGS ---
+        function applyTheme() {
+            document.documentElement.setAttribute('data-theme', document.getElementById('themeSel').value);
+            saveSettings();
         }
-
         function saveSettings() {
             const cfg = {
+                theme: document.getElementById('themeSel').value,
                 compress: document.getElementById('compressMode').value,
+                sound: document.getElementById('optSound').checked,
                 integrity: document.getElementById('optIntegrity').checked,
                 burn: document.getElementById('optBurn').checked,
                 stealth: document.getElementById('optStealth').checked,
-                disc: document.getElementById('autoDisc').value,
                 name: document.getElementById('myName').value
             };
-            localStorage.setItem('sft_settings', JSON.stringify(cfg));
+            localStorage.setItem('sft_v25', JSON.stringify(cfg));
         }
-
-        // Init Load
+        function loadSettings() {
+            const s = localStorage.getItem('sft_v25');
+            if (s) {
+                const cfg = JSON.parse(s);
+                if(cfg.theme) { document.getElementById('themeSel').value = cfg.theme; applyTheme(); }
+                if(cfg.name) document.getElementById('myName').value = cfg.name;
+                document.getElementById('compressMode').value = cfg.compress || 'smart';
+                document.getElementById('optSound').checked = cfg.sound !== false;
+                document.getElementById('optIntegrity').checked = cfg.integrity !== false;
+                document.getElementById('optBurn').checked = cfg.burn || false;
+                document.getElementById('optStealth').checked = cfg.stealth || false;
+            }
+            // URL Param Check
+            const urlParams = new URLSearchParams(window.location.search);
+            if(urlParams.has('connect')) document.getElementById('partnerName').value = urlParams.get('connect');
+        }
         window.addEventListener('load', loadSettings);
 
-        function cleanInput(el) { 
-            el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); 
-            saveSettings(); 
+        function playSound() {
+            if(!document.getElementById('optSound').checked) return;
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.connect(g); g.connect(ctx.destination);
+            osc.frequency.value = 800; osc.type = 'sine';
+            g.gain.value = 0.1; osc.start(); 
+            g.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.1);
+            osc.stop(ctx.currentTime + 0.1);
         }
 
+        function switchTab(t) {
+            document.getElementById('tab-files').classList.add('hidden');
+            document.getElementById('tab-chat').classList.add('hidden');
+            document.getElementById('tab-settings').classList.add('hidden');
+            document.getElementById('tab-'+t).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach(e => e.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function cleanInput(el) { el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, ''); saveSettings(); }
         function setStatus(msg, type) { 
             const el = document.getElementById('statusBadge');
             el.innerText = msg;
@@ -200,20 +259,17 @@
             const mat = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveKey"]);
             return crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode(salt), iterations: 100000, hash: "SHA-256" }, mat, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
         }
-        async function generateSuperKey() {
-            return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
-        }
-        async function sha256(buffer) {
-            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        async function generateSuperKey() { return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]); }
+        async function sha256(buf) {
+            const h = await crypto.subtle.digest('SHA-256', buf);
+            return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join('');
         }
 
         // --- APP ---
         function startApp() {
             const n = document.getElementById('myName').value;
             if (n.length < 2) return alert("Name zu kurz");
-            saveSettings(); // Ensure name is saved
+            saveSettings();
             peer = new Peer(PREFIX + n, { debug: 1 });
             peer.on('open', () => {
                 setStatus('Online', 'online');
@@ -235,6 +291,12 @@
                 setupData();
             });
         }
+        
+        function shareLink() {
+            const url = window.location.origin + window.location.pathname + "?connect=" + document.getElementById('myName').value;
+            navigator.clipboard.writeText(url);
+            alert("Link kopiert!\n" + url);
+        }
 
         function connect() {
             const p = document.getElementById('partnerName').value;
@@ -244,8 +306,6 @@
 
         function setupData() {
             conn.on('data', async (d) => {
-                resetAutoDisc();
-
                 if (d.type === 'HELLO') {
                     conn.pSalt = d.salt; 
                     document.getElementById('screenConnect').classList.add('hidden');
@@ -262,10 +322,18 @@
                     } catch(e) { conn.send({ type: 'KEY_FAIL' }); }
                 }
                 if (d.type === 'KEY_ACK') showTrans();
-                if (d.type === 'KEY_FAIL') alert("PIN Falsch!");
+                
+                // CHAT
+                if (d.type === 'CHAT') {
+                    const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(d.iv) }, superKey, d.data);
+                    const txt = new TextDecoder().decode(dec);
+                    addChatMsg(txt, false);
+                    playSound();
+                }
 
+                // FILES
                 if (d.type === 'FILE_START') {
-                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, hash: d.hash };
+                    incoming[d.id] = { buffer: [], received: 0, total: d.size, name: d.name, mime: d.mime, hash: d.hash, burn: d.burn };
                     document.getElementById('bulkArea').classList.remove('hidden');
                     document.getElementById('currentFileName').innerText = "Empfange: " + d.name;
                 }
@@ -297,22 +365,35 @@
         
         function showTrans() { 
             document.getElementById('screenAuth').classList.add('hidden');
-            document.getElementById('screenTransfer').classList.remove('hidden');
+            document.getElementById('screenMain').classList.remove('hidden');
             setStatus('🔒 Verbunden', 'secure');
-            resetAutoDisc();
         }
 
-        function resetAutoDisc() {
-            if(discTimer) clearTimeout(discTimer);
-            const min = parseInt(document.getElementById('autoDisc').value);
-            if(min > 0) {
-                discTimer = setTimeout(() => {
-                    alert("Zeit abgelaufen.");
-                    location.reload();
-                }, min * 60 * 1000);
-            }
+        // --- CHAT ---
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const txt = input.value;
+            if(!txt || !superKey) return;
+            
+            const enc = new TextEncoder().encode(txt);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, superKey, enc);
+            
+            conn.send({ type: 'CHAT', iv: iv, data: encrypted });
+            addChatMsg(txt, true);
+            input.value = '';
+        }
+        function addChatMsg(txt, me) {
+            const d = document.createElement('div');
+            d.className = 'msg ' + (me ? 'me' : 'other');
+            d.innerText = txt;
+            const box = document.getElementById('chatBox');
+            box.appendChild(d);
+            box.scrollTop = box.scrollHeight;
+            if(!me) switchTab('chat'); 
         }
 
+        // --- FILE ---
         async function startBulkUpload() {
             if(!superKey) return alert("Kein Key!");
             const files = Array.from(document.getElementById('files').files);
@@ -329,39 +410,28 @@
                 let name = f.name;
                 document.getElementById('currentFileName').innerText = "Sende: " + name;
                 document.getElementById('pBar').style.width = '0%';
-
                 if (doStealth) name = "sec_" + Math.random().toString(36).substr(2,6);
 
                 let blob = f;
-                if (mode === 'smart' && f.size > 2 * 1024 * 1024 && f.type.startsWith('image/')) {
+                if (mode === 'smart' && f.size > 2*1024*1024 && f.type.startsWith('image/')) {
                     try {
                         const bmp = await createImageBitmap(f);
                         const cvs = document.createElement('canvas');
                         cvs.width = bmp.width; cvs.height = bmp.height;
                         cvs.getContext('2d').drawImage(bmp,0,0);
                         blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
-                        if (!doStealth) name = name.replace(/\.[^/.]+$/, "") + ".jpg";
-                    } catch (e) {}
-                } else if (mode === 'always' && f.type.startsWith('image/')) {
-                     try {
-                        const bmp = await createImageBitmap(f);
-                        const cvs = document.createElement('canvas');
-                        cvs.width = bmp.width; cvs.height = bmp.height;
-                        cvs.getContext('2d').drawImage(bmp,0,0);
-                        blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.7));
+                        if(!doStealth) name = name.replace(/\.[^/.]+$/, "") + ".jpg";
                     } catch (e) {}
                 }
 
                 const raw = await blob.arrayBuffer();
-                let hash = null;
+                let hash = null; 
                 if(doIntegrity) hash = await sha256(raw);
 
                 const iv = crypto.getRandomValues(new Uint8Array(12));
                 const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, superKey, raw);
-                
                 const packed = new Uint8Array(iv.length + encrypted.byteLength);
-                packed.set(iv);
-                packed.set(new Uint8Array(encrypted), iv.length);
+                packed.set(iv); packed.set(new Uint8Array(encrypted), iv.length);
 
                 const fileId = Math.random().toString(36).substr(2, 9);
                 conn.send({ type: 'FILE_START', id: fileId, name: name, size: packed.byteLength, mime: blob.type, hash: hash, burn: doBurn });
@@ -392,95 +462,52 @@
                 const data = full.slice(12);
                 const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, superKey, data);
                 
-                // Integrity
                 let verified = '';
                 if(f.hash) {
                     const myHash = await sha256(dec);
-                    if(myHash === f.hash) verified = '✔️'; else verified = '⚠️';
+                    verified = (myHash === f.hash) ? '✔️' : '⚠️';
                 }
 
                 const blob = new Blob([dec], {type: f.mime});
                 const url = URL.createObjectURL(blob);
-                
                 receivedFiles.push({ name: f.name, blob: blob });
                 document.getElementById('btnZip').classList.remove('hidden');
+                playSound();
 
                 const div = document.createElement('div');
                 div.className = 'file-item';
                 
-                let thumbHtml = '';
-                let onclickAction = '';
-                
+                let thumbHtml = '<div class="thumb" style="background:#334155; display:flex; align-items:center; justify-content:center;">📄</div>';
+                let onclick = '';
+
                 if (f.mime.startsWith('image/')) {
                     thumbHtml = `<img src="${url}" class="thumb">`;
-                    onclickAction = `openLightbox('img', '${url}')`;
-                } else if (f.mime.startsWith('video/') || f.mime === 'image/gif') {
-                    thumbHtml = `<div class="thumb-vid">▶️</div>`;
-                    onclickAction = `openLightbox('vid', '${url}')`;
-                } else {
-                    thumbHtml = `<div class="thumb-vid" style="font-size:1rem">📄</div>`;
+                    onclick = `document.getElementById('lightbox').classList.remove('hidden'); document.getElementById('lbImg').src='${url}'; document.getElementById('lbImg').classList.remove('hidden'); document.getElementById('lbVid').classList.add('hidden');`;
+                } else if (f.mime.startsWith('video/')) {
+                    thumbHtml = '<div class="thumb" style="background:#334155; display:flex; align-items:center; justify-content:center;">▶️</div>';
+                    onclick = `document.getElementById('lightbox').classList.remove('hidden'); document.getElementById('lbVid').src='${url}'; document.getElementById('lbVid').classList.remove('hidden'); document.getElementById('lbImg').classList.add('hidden'); document.getElementById('lbVid').play();`;
                 }
 
                 div.innerHTML = `
-                    <div style="display:flex; align-items:center; flex-grow:1; cursor:pointer;" onclick="${onclickAction}">
+                    <div style="display:flex; align-items:center; flex-grow:1; cursor:pointer;" onclick="${onclick}">
                         ${thumbHtml}
                         <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px;">
                             ${f.name} ${f.burn?'🔥':''} ${verified}<br><small>${(f.total/1024).toFixed(0)} KB</small>
                         </div>
                     </div>
-                    <a href="${url}" download="${f.name}" style="background:#22c55e; color:#022c22; padding:5px 10px; text-decoration:none; border-radius:4px; font-weight:bold;">⬇️</a>
+                    <a href="${url}" download="${f.name}" style="background:var(--btn-green); color:#022c22; padding:5px 10px; text-decoration:none; border-radius:4px; font-weight:bold;">⬇️</a>
                 `;
                 document.getElementById('fileList').prepend(div);
             } catch(e) { console.error(e); }
         }
-
-        // --- MEDIA VIEWER ---
-        function openLightbox(type, url) {
-            const lb = document.getElementById('lightbox');
-            const img = document.getElementById('lbImg');
-            const vid = document.getElementById('lbVid');
-            const ctrls = document.getElementById('vidControls');
-            
-            lb.classList.remove('hidden');
-            img.classList.add('hidden');
-            vid.classList.add('hidden');
-            ctrls.classList.add('hidden');
-
-            if (type === 'img') {
-                img.src = url;
-                img.classList.remove('hidden');
-            } else if (type === 'vid') {
-                vid.src = url;
-                vid.muted = true; 
-                vid.autoplay = true;
-                vid.classList.remove('hidden');
-                ctrls.classList.remove('hidden');
-                vid.play();
-            }
-        }
-
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.add('hidden');
-            document.getElementById('lbVid').pause();
-            document.getElementById('lbVid').src = "";
-        }
-
-        function toggleMute() {
-            const vid = document.getElementById('lbVid');
-            vid.muted = !vid.muted;
-        }
-
+        
         async function downloadAllZip() {
-            if(receivedFiles.length === 0) return;
+            if(receivedFiles.length===0) return;
             const zip = new JSZip();
             receivedFiles.forEach(f => zip.file(f.name, f.blob));
-            
             const content = await zip.generateAsync({type:"blob"});
             const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "SecureFiles_" + Date.now() + ".zip";
-            a.click();
+            const a = document.createElement('a'); a.href = url; a.download = "Files.zip"; a.click();
         }
     </script>
 </body>

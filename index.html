@@ -2,248 +2,148 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Transfer V7 (iPhone Fix)</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer V8 - Ultimate (No P2P)</title>
+    <!-- We switch from PeerJS (WebRTC) to PieSocket (WebSocket) to bypass strict Firewalls -->
+    <script src="https://unpkg.com/piesocket-js@5"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #fff; padding: 15px; color: #333; max-width: 500px; margin: 0 auto; }
-        .box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; font-size: 1.2rem; }
-        input { font-size: 16px; padding: 10px; width: 100%; box-sizing: border-box; border: 2px solid #ddd; border-radius: 5px; -webkit-appearance: none; }
-        button { font-size: 16px; width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; margin-top: 10px; font-weight: bold; }
-        button.red { background: #dc3545; }
-        button.green { background: #28a745; }
-        .log { background: #f8f9fa; font-family: monospace; font-size: 11px; padding: 10px; border: 1px solid #eee; height: 100px; overflow-y: scroll; margin-bottom: 15px; }
+        body { font-family: sans-serif; padding: 20px; background: #222; color: white; max-width: 600px; margin: 0 auto; text-align: center; }
+        .box { background: #333; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        input { font-size: 18px; padding: 10px; width: 80%; margin: 10px 0; border-radius: 5px; text-align: center; }
+        button { font-size: 18px; padding: 12px 24px; background: #e91e63; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px; }
         .hidden { display: none; }
-        .status-bar { padding: 10px; text-align: center; background: #eee; margin-bottom: 15px; border-radius: 5px; font-weight: bold; }
-        .status-bar.green { background: #d4edda; color: #155724; }
-        .status-bar.red { background: #f8d7da; color: #721c24; }
+        .log { font-family: monospace; color: #aaa; font-size: 12px; text-align: left; background: #111; padding: 10px; height: 150px; overflow-y: scroll; }
+        a { color: #4caf50; font-weight: bold; text-decoration: none; font-size: 18px; }
     </style>
 </head>
 <body>
 
-    <h2 style="text-align:center">📱 Transfer V7</h2>
-    
-    <!-- Status & Log (Always visible for debugging) -->
-    <div id="status" class="status-bar red">Nicht verbunden</div>
-    <div id="debug" class="log">Log startet...</div>
+    <h1>🚀 Transfer V8 (Firewall-Bypass)</h1>
+    <p style="font-size: 0.9em; color: #aaa;">Nutzt WebSockets statt WebRTC (läuft fast überall).</p>
 
-    <!-- Screen 1: Login -->
-    <div id="screenLogin" class="box">
-        <h3>1. Wer bist du?</h3>
-        <p style="font-size:0.9em; color:#666;">Gib einen Namen ein (z.B. handy).</p>
-        
-        <input type="text" id="myId" placeholder="Name" onkeyup="clean(this)">
-        <button onclick="startPeer()">Starten</button>
-        <button onclick="randomId()" style="background:#6c757d; margin-top:5px;">Zufalls-Name generieren</button>
-        
-        <p style="font-size:0.8em; color:#dc3545; margin-top:10px;">⚠️ Wichtig: Wenn es beim "Starten" hängt, schalte WLAN aus und nutze mobile Daten!</p>
+    <!-- 1. Raum -->
+    <div id="step1" class="box">
+        <h3>1. Gemeinsamer Raum</h3>
+        <p>Denkt euch eine geheime Zahl aus (z.B. 1234):</p>
+        <input type="number" id="roomCode" placeholder="Code (z.B. 5566)">
+        <button onclick="joinRoom()">Raum beitreten</button>
     </div>
 
-    <!-- Screen 2: Connect -->
-    <div id="screenConnect" class="box hidden">
-        <h3>2. Verbinden</h3>
-        <p>Dein Name: <b id="displayName" style="color:#007bff">...</b></p>
-        <hr>
-        <p>Partner Name:</p>
-        <input type="text" id="partnerId" placeholder="z.B. pc" onkeyup="clean(this)">
-        <button class="green" onclick="connect()" id="btnConnect">Verbinden</button>
-    </div>
-
-    <!-- Screen 3: PIN -->
-    <div id="screenPin" class="box hidden">
-        <h3 id="pinTitle">🔒 PIN Check</h3>
+    <!-- 2. Transfer -->
+    <div id="step2" class="box hidden">
+        <h3>✅ Im Raum: <span id="roomDisplay"></span></h3>
+        <p id="status">Warte auf Partner...</p>
         
-        <div id="pinShow" class="hidden" style="text-align:center; font-size:40px; background:#eee; padding:10px; letter-spacing:5px; font-weight:bold;">
-            ----
+        <div style="border: 2px dashed #e91e63; padding: 20px; margin: 20px 0;">
+            <input type="file" id="fileInput">
+            <button onclick="uploadFile()">Senden</button>
         </div>
 
-        <div id="pinEnter" class="hidden">
-            <input type="tel" id="inputPin" placeholder="PIN" style="font-size:30px; text-align:center; letter-spacing:5px;">
-            <button class="green" onclick="sendPin()">Senden</button>
-        </div>
-        
-        <button class="red" onclick="location.reload()">Abbrechen</button>
-    </div>
-
-    <!-- Screen 4: Files -->
-    <div id="screenFiles" class="box hidden">
-        <h3 style="color:#28a745">✅ Verbunden</h3>
-        
-        <div style="border:2px dashed #28a745; padding:15px; text-align:center; margin-bottom:15px; background:#f0fff4;">
-            <input type="file" id="files" multiple>
-            <button class="green" onclick="sendFiles()">Senden</button>
-        </div>
-        
+        <h3>Empfangene Dateien:</h3>
         <div id="fileList"></div>
     </div>
 
+    <div id="debug" class="log">System bereit.</div>
+
     <script>
-        const PRE = 'sft-v7-ios-';
-        let peer, conn, myPin;
-        let myName = '';
+        // FREE API KEY for PieSocket (Public Demo Key)
+        // Warning: Limited daily usage, but works for testing.
+        const API_KEY = 'VCXCEuvhGcBDP7XhiJJUDvR1e1D3eiVjgZ9VRiaV'; 
+        const CLUSTER_ID = 'free.blr2.piesocket.com';
 
-        function log(m) {
+        let channel;
+        let myName = 'User' + Math.floor(Math.random() * 1000);
+
+        function log(msg) {
             const d = document.getElementById('debug');
-            d.innerHTML = `<div>${m}</div>` + d.innerHTML;
-        }
-        function clean(e) { e.value = e.value.toLowerCase().replace(/[^a-z0-9]/g, ''); }
-        function setStatus(c, t) { const s = document.getElementById('status'); s.className = 'status-bar ' + c; s.innerText = t; }
-
-        function randomId() {
-            document.getElementById('myId').value = 'user' + Math.floor(Math.random()*9999);
+            d.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + d.innerHTML;
         }
 
-        // --- 1. Start ---
-        function startPeer() {
-            const name = document.getElementById('myId').value;
-            if (name.length < 2) return alert('Name zu kurz');
+        function joinRoom() {
+            const code = document.getElementById('roomCode').value;
+            if (!code) return alert("Code eingeben!");
+
+            log("Verbinde zu Raum " + code + " via WebSocket...");
             
-            myName = name;
-            log('Verbinde zu Server...');
-            setStatus('red', 'Verbinde...');
-            
-            // Setup Timeout Warning
-            const timer = setTimeout(() => {
-                if (!peer || !peer.open) {
-                    alert("Verbindung zum Server fehlgeschlagen! \n\nBITTE WLAN AUSSCHALTEN und mobile Daten nutzen.");
-                    log('TIMEOUT: Server antwortet nicht.');
+            // PieSocket connection
+            var piesocket = new PieSocket.default({
+                clusterId: CLUSTER_ID,
+                apiKey: API_KEY
+            });
+
+            channel = piesocket.subscribe(code);
+
+            channel.on('open', () => {
+                log("✅ Verbunden mit Server!");
+                document.getElementById('step1').classList.add('hidden');
+                document.getElementById('step2').classList.remove('hidden');
+                document.getElementById('roomDisplay').innerText = code;
+                
+                // Announce self
+                channel.publish("system", JSON.stringify({ type: 'JOIN', name: myName }));
+            });
+
+            channel.on('message', (msg) => {
+                // Check if message is system or data
+                // PieSocket sends raw events
+            });
+
+            channel.listen("system", (data, meta) => {
+                const d = JSON.parse(data);
+                if (d.type === 'JOIN' && d.name !== myName) {
+                    log("Partner " + d.name + " ist beigetreten!");
+                    document.getElementById('status').innerText = "Partner ist da!";
                 }
-            }, 6000);
-
-            peer = new Peer(PRE + name, {
-                debug: 1,
-                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
             });
 
-            peer.on('open', (id) => {
-                clearTimeout(timer);
-                log('✅ Online als: ' + name);
-                setStatus('green', 'Online: ' + name);
-                document.getElementById('screenLogin').classList.add('hidden');
-                document.getElementById('screenConnect').classList.remove('hidden');
-                document.getElementById('displayName').innerText = name;
-            });
-
-            peer.on('error', (err) => {
-                clearTimeout(timer);
-                log('FEHLER: ' + err.type);
-                if (err.type === 'unavailable-id') alert('Name belegt! Nutze einen anderen.');
-                else alert('Fehler: ' + err.type);
-            });
-
-            // Receiver Logic
-            peer.on('connection', (c) => {
-                log('⚡ Anruf von: ' + c.peer);
-                c.on('open', () => {
-                    log('Verbindung steht. Generiere PIN...');
-                    conn = c;
-                    setupData();
-                    
-                    // I am Receiver -> Show PIN
-                    myPin = Math.floor(1000 + Math.random()*9000).toString();
-                    conn.send({ t: 'HELLO' });
-                    
-                    document.getElementById('screenConnect').classList.add('hidden');
-                    document.getElementById('screenPin').classList.remove('hidden');
-                    document.getElementById('pinShow').classList.remove('hidden');
-                    document.getElementById('pinShow').innerText = myPin;
+            channel.listen("file_transfer", (data, meta) => {
+                log("Datei-Daten empfangen...");
+                const d = JSON.parse(data);
+                
+                // Reassemble Base64
+                fetch(d.data)
+                .then(res => res.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <div style="padding:10px; border-bottom:1px solid #555;">
+                            ${d.name} (${(d.size/1024).toFixed(1)} KB)<br>
+                            <a href="${url}" download="${d.name}">⬇️ Download</a>
+                        </div>
+                    `;
+                    document.getElementById('fileList').prepend(div);
+                    log("Datei fertig: " + d.name);
                 });
             });
+            
+            channel.on('error', (err) => {
+                log("Fehler: " + err);
+            });
         }
 
-        // --- 2. Connect ---
-        function connect() {
-            const p = document.getElementById('partnerId').value;
-            if (!p) return;
-            
-            log('Rufe an: ' + p);
-            const btn = document.getElementById('btnConnect');
-            btn.innerText = 'Verbinde...';
-            btn.disabled = true;
+        function uploadFile() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
 
-            const c = peer.connect(PRE + p);
-            
-            c.on('open', () => {
-                log('Verbunden! Warte auf PIN...');
-                conn = c;
-                setupData();
-            });
+            if (file.size > 1000000) { // 1MB limit for WebSocket
+                return alert("Achtung: In dieser Fallback-Version gehen nur kleine Dateien (max 1MB). Dein Netzwerk blockiert große P2P-Transfers.");
+            }
 
-            c.on('error', (e) => {
-                log('Verbindungsfehler');
-                alert('Verbindung fehlgeschlagen. Ist der Partner online?');
-                location.reload();
-            });
-
-            setTimeout(() => {
-                if(!conn) {
-                    alert('Keine Antwort. Firewall?');
-                    location.reload();
-                }
-            }, 10000);
-        }
-
-        // --- 3. Data ---
-        function setupData() {
-            conn.on('data', (d) => {
-                // Handshake
-                if (d.t === 'HELLO') {
-                    // I am Sender -> Enter PIN
-                    document.getElementById('screenConnect').classList.add('hidden');
-                    document.getElementById('screenPin').classList.remove('hidden');
-                    document.getElementById('pinEnter').classList.remove('hidden');
-                }
+            log("Lese Datei...");
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                log("Sende Datei via Relay...");
+                const payload = {
+                    name: file.name,
+                    size: file.size,
+                    data: e.target.result // Base64
+                };
                 
-                // Auth
-                if (d.t === 'PIN_CHECK') {
-                    if (d.pin === myPin) {
-                        conn.send({ t: 'PIN_OK' });
-                        showFiles();
-                    } else {
-                        conn.send({ t: 'PIN_FAIL' });
-                        alert('Falscher PIN');
-                        location.reload();
-                    }
-                }
-                
-                if (d.t === 'PIN_OK') showFiles();
-                if (d.t === 'PIN_FAIL') { alert('Falscher PIN'); location.reload(); }
-
-                // File
-                if (d.file) {
-                    log('Datei: ' + d.name);
-                    const b = new Blob([d.file]);
-                    const u = URL.createObjectURL(b);
-                    const el = document.createElement('div');
-                    el.innerHTML = `<div style="padding:10px; border-bottom:1px solid #ddd">
-                        <b>${d.name}</b><br>
-                        <a href="${u}" download="${d.name}" style="color:green">Download</a>
-                    </div>`;
-                    document.getElementById('fileList').prepend(el);
-                }
-            });
-            
-            conn.on('close', () => { alert('Getrennt'); location.reload(); });
-        }
-
-        function sendPin() {
-            const p = document.getElementById('inputPin').value;
-            conn.send({ t: 'PIN_CHECK', pin: p });
-        }
-
-        function showFiles() {
-            document.getElementById('screenPin').classList.add('hidden');
-            document.getElementById('screenFiles').classList.remove('hidden');
-        }
-
-        function sendFiles() {
-            const fs = document.getElementById('files').files;
-            Array.from(fs).forEach(f => {
-                log('Sende: ' + f.name);
-                conn.send({ file: f, name: f.name });
-            });
-            alert('Gesendet');
+                channel.publish("file_transfer", JSON.stringify(payload));
+                alert("Gesendet!");
+            };
+            reader.readAsDataURL(file);
         }
     </script>
 </body>

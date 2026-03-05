@@ -90,11 +90,14 @@
     <!-- AUTH/CONNECT (Hidden by default until needed) -->
     <div id="screenConnect" class="card hidden">
         <h3 style="margin-top:0;">Geräte hinzufügen</h3>
-        <input type="text" id="partnerName" placeholder="Partner Name" onkeyup="cleanInput(this)">
+        <input type="text" id="partnerName" placeholder="Partner Name oder Partner-ID" onkeyup="cleanInput(this)">
         <div style="display:flex; gap:10px;">
             <button class="btn-green" onclick="connectToPeer()">➕ Hinzufügen</button>
             <button class="btn-blue" onclick="shareLink()">🔗 Link</button>
         </div>
+        <small id="myPeerInfo" onclick="copyMyId()" style="display:block; margin-top:8px; opacity:0.8; cursor:pointer;">
+            Meine ID: - (klicken zum Kopieren)
+        </small>
         
         <div id="authArea" class="hidden" style="margin-top:15px; background:var(--bg); padding:10px; border-radius:8px;">
             <div id="authReceiver" class="hidden">
@@ -236,6 +239,7 @@
         let incoming = {};
         let receivedFiles = [];
         let pendingAuthPeer = null;
+        let myPeerId = '';
         let audioCtx = null;
 
         function applyTheme() {
@@ -315,7 +319,11 @@
         }
 
         function cleanInput(el) {
-            el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (el.id === 'myName') {
+                el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            } else if (el.id === 'partnerName') {
+                el.value = el.value.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+            }
             saveSettings();
         }
 
@@ -363,6 +371,7 @@
             if (mode !== 'lan') {
                 iceServers.push({ urls: 'stun:stun.l.google.com:19302' });
                 iceServers.push({ urls: 'stun:global.stun.twilio.com:3478' });
+                iceServers.push({ urls: 'stun:openrelay.metered.ca:80' });
             } else {
                 iceServers.push({ urls: 'stun:stun.l.google.com:19302' });
             }
@@ -382,12 +391,10 @@
         }
 
         function buildRtcConfig() {
-            const mode = document.getElementById('netMode').value || 'auto';
-            const rtcConfig = { iceServers: buildIceServers() };
-            if (mode === 'internet') {
-                rtcConfig.iceTransportPolicy = 'relay';
-            }
-            return rtcConfig;
+            return {
+                iceServers: buildIceServers(),
+                iceCandidatePoolSize: 8
+            };
         }
 
         async function derivePinKey(pin, salt) {
@@ -450,6 +457,8 @@
             });
 
             peer.on('open', (id) => {
+                myPeerId = id;
+                document.getElementById('myPeerInfo').innerText = 'Meine ID: ' + id + ' (klicken zum Kopieren)';
                 document.getElementById('screenSetup').classList.add('hidden');
                 document.getElementById('screenMain').classList.remove('hidden');
                 document.getElementById('screenConnect').classList.remove('hidden');
@@ -473,7 +482,8 @@
 
             peer.on('error', (err) => {
                 console.error(err);
-                setNetStatus('Peer Fehler: ' + (err.type || err.message || 'unbekannt'), true);
+                const reason = err && (err.type || err.message) ? (err.type || err.message) : 'unbekannt';
+                setNetStatus('Peer Fehler: ' + reason, true);
             });
         }
 
@@ -481,24 +491,38 @@
             setupConnectionEvents(conn, false);
         }
 
-        function connectToPeer() {
-            if (!peer || peer.destroyed) return alert('Bitte zuerst starten.');
-            const p = document.getElementById('partnerName').value.trim();
-            if (!p) return;
-            const target = PREFIX + p;
-            if (target === peer.id) return alert('Selbstverbindung nicht erlaubt.');
-            const conn = peer.connect(target, { reliable: true });
-            setupConnectionEvents(conn, true);
-            setNetStatus('Verbinde mit ' + p + ' ...');
+        function resolveTargetPeerId(input) {
+            const raw = (input || '').trim().toLowerCase();
+            if (!raw) return '';
+            if (raw.startsWith(PREFIX)) return raw;
+            return PREFIX + raw.replace(/[^a-z0-9]/g, '');
         }
 
-        function setupConnectionEvents(conn, outgoing) {
+        function connectToPeer() {
+            if (!peer || peer.destroyed) return alert('Bitte zuerst starten.');
+            const input = document.getElementById('partnerName').value.trim();
+            if (!input) return;
+            const target = resolveTargetPeerId(input);
+            if (target === peer.id) return alert('Selbstverbindung nicht erlaubt.');
+            const conn = peer.connect(target, { reliable: true });
+            setupConnectionEvents(conn, true, input);
+            setNetStatus('Verbinde mit ' + displayPeerId(target) + ' ...');
+        }
+
+        function setupConnectionEvents(conn, outgoing, typedTarget) {
             if (connections[conn.peer] && connections[conn.peer].conn && connections[conn.peer].conn !== conn) {
                 try { connections[conn.peer].conn.close(); } catch (e) { console.error(e); }
             }
             ensureState(conn);
+            let openTimer = setTimeout(() => {
+                if (!conn.open) {
+                    try { conn.close(); } catch (e) { console.error(e); }
+                    setNetStatus('Timeout bei Verbindung zu ' + (typedTarget || displayPeerId(conn.peer)) + '. Nutze exakte Partner-ID.', true);
+                }
+            }, 15000);
 
             conn.on('open', () => {
+                clearTimeout(openTimer);
                 const state = ensureState(conn);
                 state.key = null;
                 state.authenticated = false;
@@ -521,6 +545,7 @@
             conn.on('data', (d) => { handleData(conn, d).catch((e) => console.error(e)); });
 
             conn.on('close', () => {
+                clearTimeout(openTimer);
                 ghostCleanup(conn.peer);
                 dropIncomingForPeer(conn.peer);
                 delete connections[conn.peer];
@@ -530,10 +555,16 @@
             });
 
             conn.on('error', (err) => {
+                clearTimeout(openTimer);
                 console.error(err);
                 delete connections[conn.peer];
                 updateDeviceList();
-                setNetStatus('Verbindungsfehler mit ' + displayPeerId(conn.peer), true);
+                const reason = err && (err.type || err.message) ? (err.type || err.message) : 'unbekannt';
+                if (reason === 'peer-unavailable') {
+                    setNetStatus('Verbindungsfehler: Partner nicht online oder falsche ID (' + (typedTarget || displayPeerId(conn.peer)) + ').', true);
+                } else {
+                    setNetStatus('Verbindungsfehler mit ' + displayPeerId(conn.peer) + ': ' + reason, true);
+                }
             });
         }
 
@@ -956,14 +987,22 @@
         }
 
         function shareLink() {
-            const name = document.getElementById('myName').value;
-            if (!name) return alert('Bitte zuerst Geraetename eingeben.');
+            const shareId = myPeerId || (PREFIX + document.getElementById('myName').value);
+            if (!shareId || shareId === PREFIX) return alert('Bitte zuerst starten.');
 
             const base = (window.location.origin === 'null' ? window.location.href.split('?')[0] : window.location.origin + window.location.pathname);
-            const link = base + '?connect=' + encodeURIComponent(name);
+            const link = base + '?connect=' + encodeURIComponent(shareId);
             navigator.clipboard.writeText(link).then(
                 () => alert('Link kopiert!'),
                 () => window.prompt('Link kopieren:', link)
+            );
+        }
+
+        function copyMyId() {
+            if (!myPeerId) return alert('ID erst nach Start verfuegbar.');
+            navigator.clipboard.writeText(myPeerId).then(
+                () => setNetStatus('Eigene ID kopiert: ' + myPeerId),
+                () => window.prompt('ID kopieren:', myPeerId)
             );
         }
     </script>

@@ -175,12 +175,12 @@
                     <span>🌐 Netzmodus</span>
                     <select id="netMode" style="width:120px;" onchange="saveSettings()">
                         <option value="auto">Auto</option>
-                        <option value="internet">Internet</option>
+                        <option value="internet" selected>Internet</option>
                         <option value="lan">Nur LAN</option>
                     </select>
                 </div>
                 <div style="font-size:0.75rem; opacity:0.75; margin:8px 0 10px;">
-                    Für Verbindungen über unterschiedliche Netze ist ein TURN-Server nötig.
+                    Internet-Modus nutzt eingebautes Relay (TURN). Eigener TURN ist stabiler.
                 </div>
                 <input type="text" id="turnUrl" placeholder="TURN URL (z.B. turn:turn.example.com:3478)" onchange="saveSettings()">
                 <input type="text" id="turnUser" placeholder="TURN Benutzer (optional)" onchange="saveSettings()">
@@ -224,6 +224,12 @@
         const CHUNK_SIZE = 128 * 1024;
         const BUFFER_HIGH_WATERMARK = 4 * 1024 * 1024;
         const BUFFER_LOW_WATERMARK = 1 * 1024 * 1024;
+        const FALLBACK_TURN_SERVERS = [
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        ];
 
         let peer = null;
         let connections = {};
@@ -265,7 +271,7 @@
                     }
                     if (cfg.name) document.getElementById('myName').value = cfg.name;
                     document.getElementById('compressMode').value = cfg.compress || 'smart';
-                    document.getElementById('netMode').value = cfg.netMode || 'auto';
+                    document.getElementById('netMode').value = cfg.netMode || 'internet';
                     document.getElementById('turnUrl').value = cfg.turnUrl || '';
                     document.getElementById('turnUser').value = cfg.turnUser || '';
                     document.getElementById('turnPass').value = cfg.turnPass || '';
@@ -369,8 +375,19 @@
                 if (turnUser) turnConfig.username = turnUser;
                 if (turnPass) turnConfig.credential = turnPass;
                 iceServers.push(turnConfig);
+            } else if (mode === 'internet') {
+                FALLBACK_TURN_SERVERS.forEach((s) => iceServers.push(s));
             }
             return iceServers;
+        }
+
+        function buildRtcConfig() {
+            const mode = document.getElementById('netMode').value || 'auto';
+            const rtcConfig = { iceServers: buildIceServers() };
+            if (mode === 'internet') {
+                rtcConfig.iceTransportPolicy = 'relay';
+            }
+            return rtcConfig;
         }
 
         async function derivePinKey(pin, salt) {
@@ -421,9 +438,15 @@
             saveSettings();
             setNetStatus('Verbinde Signalisierung ...');
 
+            const usingCustomTurn = !!document.getElementById('turnUrl').value.trim();
+            const mode = document.getElementById('netMode').value || 'auto';
             peer = new Peer(PREFIX + name, {
                 debug: 1,
-                config: { iceServers: buildIceServers() }
+                host: '0.peerjs.com',
+                port: 443,
+                secure: true,
+                path: '/',
+                config: buildRtcConfig()
             });
 
             peer.on('open', (id) => {
@@ -432,8 +455,12 @@
                 document.getElementById('screenConnect').classList.remove('hidden');
                 setNetStatus('Bereit als ' + displayPeerId(id));
 
-                if (document.getElementById('netMode').value === 'internet' && !document.getElementById('turnUrl').value.trim()) {
-                    setNetStatus('Internet-Modus aktiv: TURN fehlt (Verbindungen koennen fehlschlagen).', true);
+                if (mode === 'internet') {
+                    if (usingCustomTurn) {
+                        setNetStatus('Internet-Modus aktiv mit eigenem TURN-Server.');
+                    } else {
+                        setNetStatus('Internet-Modus aktiv mit eingebautem Relay (TURN).');
+                    }
                 }
             });
 

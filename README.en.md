@@ -1,112 +1,136 @@
 # Secure File Transfer - Version 27
 
-Status date: **March 5, 2026**
+> Browser-based file transfer and chat with PIN authentication, encryption, and cross-network mode.
 
-## 1. Project Status
+## Quick Snapshot
 
-- Active version: **V27**
-- Previous version: **V26** (released on **February 12, 2026**, now discontinued)
-- Older versions from 2025/2026: discontinued and no longer maintained
+| Item | Value |
+|---|---|
+| Active version | **V27** |
+| Previous version | **V26** |
+| V26 release date | **February 12, 2026** |
+| V26 status | Discontinued |
+| Document date | **March 5, 2026** |
 
-Date clarification: "3 weeks before March 5, 2026" is **February 12, 2026**.
+Date note: "3 weeks before March 5, 2026" is **February 12, 2026**.
 
-## 2. What the program can do
+## Navigation
 
-- Direct device-to-device connections via WebRTC (peer-to-peer)
-- Encrypted chat between connected, authenticated devices
-- File transfer to multiple devices
-- PIN-based device authentication
-- Chunk-based file transfer (more stable for larger files than V26)
-- ZIP download for all received files
-- Dark/Light/Matrix theme
-- Share link support using `?connect=<device-name>`
+- [What the app can do](#what-the-app-can-do)
+- [Current limitations](#current-limitations)
+- [Supported devices and browsers](#supported-devices-and-browsers)
+- [WLAN + mobile data scenario](#wlan--mobile-data-scenario)
+- [Network modes](#network-modes)
+- [Quick start](#quick-start)
+- [Troubleshooting](#troubleshooting)
+- [Versions](#versions)
 
-## 3. What the program cannot do yet
+## What the app can do
 
-- No guaranteed cross-network transfer without a TURN server
-- No server relay fallback for files (if P2P is blocked, transfer fails)
-- No resume for interrupted file transfers
-- No user accounts, login, or cloud storage
-- No real folder sync
-- No fully enforced integrity/hash verification in the current UI flow
-- Options like "Compression" and "Stealth" exist but are currently limited
+| Feature | Status | Details |
+|---|---|---|
+| WebRTC connection | Active | Direct browser-to-browser transport |
+| Encrypted chat | Active | Available after authentication |
+| File transfer | Active | Send to multiple authenticated devices |
+| Chunk pipeline | Active | Better stability for larger files |
+| PIN auth | Active | 6-digit key exchange flow |
+| ZIP download | Active | Download all received files in one archive |
+| Internet mode | Active | Works across different networks |
+| TURN fallback | Active | Public relay fallback by default |
 
-## 4. Supported devices and browsers
+## Current limitations
 
-### Supported (recommended)
+| Area | Current status |
+|---|---|
+| 100% cross-network reliability | Not guaranteed (public relays can be limited) |
+| Server relay fallback for files | Not implemented yet |
+| Transfer resume | Not implemented yet |
+| Accounts/login/cloud sync | Not available |
+| Full integrity UI visibility | Currently limited |
 
-- Desktop/Laptop: macOS, Windows, Linux
-- Browsers: current Chrome, Edge, Firefox, Safari
-- Mobile: current Android and iOS browsers with WebRTC/WebCrypto support
+## Supported devices and browsers
 
-### Not supported or limited
+### Recommended
 
-- Internet Explorer
-- Legacy Edge (pre-Chromium)
-- Very old Android WebViews/browsers without modern WebRTC/Crypto APIs
-- Highly restricted enterprise/campus networks that block WebRTC/TURN traffic
+| Category | Support |
+|---|---|
+| Desktop | Current macOS, Windows, Linux |
+| Mobile | Current Android and iOS browsers |
+| Browser engines | Current Chrome, Edge, Firefox, Safari |
 
-## 5. Requirements
+### Limited or unsupported
 
-- JavaScript must be enabled
-- Internet access is required for:
-- External libraries (PeerJS and JSZip from CDN)
-- Peer signaling (PeerJS server)
-- For cross-network use: TURN server is strongly recommended
+| Platform | Note |
+|---|---|
+| Internet Explorer | Unsupported |
+| Legacy Edge (pre-Chromium) | Unsupported |
+| Old Android WebViews | Often missing modern WebRTC/WebCrypto APIs |
+| Strict enterprise/campus networks | TURN/WebRTC may be blocked |
 
-## 6. Quick Start
+## WLAN + mobile data scenario
+
+Yes, V27 is built for this.
+
+To make it work reliably:
+
+1. Use **Internet** mode on both devices.
+2. Both devices need internet access (same WLAN is not required).
+3. Connect and complete PIN authentication.
+4. If it still fails, configure your own TURN server (`turnUrl`, optional `turnUser`/`turnPass`).
+
+Example:
+
+- PC on home WLAN
+- Phone on mobile data
+- Connection goes through relay/TURN instead of local LAN
+
+## Network modes
+
+| Mode | Purpose | Behavior |
+|---|---|---|
+| `Internet` | Different networks | Relay/TURN-first, default in V27 |
+| `Auto` | Mixed environments | STUN-first, TURN optional |
+| `LAN only` | Same local network | Local connectivity focus |
+
+### TURN fields in settings
+
+- `turnUrl` (example: `turn:turn.example.com:3478`)
+- `turnUser` (optional)
+- `turnPass` (optional)
+
+Note: The built-in relay is a public fallback. A custom TURN server is usually more stable.
+
+## Security (short)
+
+- PIN-based key exchange
+- AES-GCM for chat and file chunks
+- WebRTC data channel transport
+
+## Quick start
 
 1. Open the app on each device.
-2. Set a device name and click **Start**.
-3. Add partner device:
-- Enter partner name and connect
-- Or share/open the generated link
-4. Authenticate:
-- One device shows PIN
-- The other device enters PIN
-5. After successful authentication, chat and file transfer are available.
+2. Set device name and click **Start**.
+3. Add partner by name or share link.
+4. Show PIN on one side and enter it on the other side.
+5. Use chat and file transfer.
 
-## 7. Network Modes (V27)
+## Troubleshooting
 
-- `Auto`: default, uses STUN; TURN optional
-- `Internet`: for different networks, TURN recommended
-- `LAN only`: for local network usage
+| Problem | Check |
+|---|---|
+| Devices cannot find each other | Verify names, internet access, browser version |
+| Works only on same WLAN | Switch to `Internet`, check TURN |
+| Transfer fails | Retry with smaller files, verify network quality |
+| Unstable connection | Use a custom TURN server |
 
-TURN setup:
-- `turnUrl` e.g. `turn:turn.example.com:3478`
-- Optional: `turnUser`, `turnPass`
+## Versions
 
-## 8. Security (technical summary)
+| Version | Period | Status |
+|---|---|---|
+| V27 | As of March 5, 2026 | Active |
+| V26 | Released February 12, 2026 | Discontinued |
+| V25 and older | 2025 to early 2026 | Discontinued |
 
-- PIN-based key exchange between devices
-- AES-GCM for encrypted payloads (chat/file chunks)
-- Transport over WebRTC data channels
-
-Important:
-- Without valid TURN configuration, cross-network connections can fail.
-- Security also depends on browser, device state, and network environment.
-
-## 9. Common Issues and Fixes
-
-- Issue: "Devices cannot find each other"
-- Verify names/prefix, browser console logs, and network permissions.
-- Issue: "Works only on same Wi-Fi"
-- Configure TURN and use `Internet` mode.
-- Issue: "Transfer stops/fails"
-- Retry with smaller file, check network stability, update both browsers.
-
-## 10. Versions (Overview)
-
-- **V27** (active, as of March 5, 2026)
-- Improved transfer stability (chunking + backpressure)
-- Improved connection/status handling
-- TURN/network mode configuration
-- **V26** (discontinued, released February 12, 2026)
-- Predecessor multi-device release
-- **V25 and older** (2025 to early 2026, discontinued)
-- Iterative development builds, no longer maintained
-
-## 11. License
+## License
 
 See [LICENSE.txt](LICENSE.txt).
-

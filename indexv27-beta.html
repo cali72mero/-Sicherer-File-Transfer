@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer V26 (Multi-Ghost)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #cbd5e1; --accent: #38bdf8; --border: #334155;
+            --btn-blue: #0ea5e9; --btn-green: #22c55e; --btn-red: #ef4444; --font: -apple-system, sans-serif;
+        }
+        [data-theme="light"] {
+            --bg: #f1f5f9; --card: #ffffff; --text: #334155; --accent: #0284c7; --border: #e2e8f0;
+            --btn-blue: #0284c7; --btn-green: #16a34a;
+        }
+        [data-theme="matrix"] {
+            --bg: #000000; --card: #111111; --text: #00ff41; --accent: #00ff41; --border: #003b00;
+            --btn-blue: #003b00; --btn-green: #008f11; --btn-red: #8f0000; --font: 'Courier New', monospace;
+        }
+
+        body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 15px; max-width: 600px; margin: 0 auto; transition: 0.3s; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h2 { margin: 0 0 10px 0; color: var(--accent); font-size: 1.4rem; }
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font); box-sizing: border-box; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 5px; color: white; transition: 0.2s; }
+        button:active { transform: scale(0.98); }
+        
+        .btn-blue { background: var(--btn-blue); }
+        .btn-green { background: var(--btn-green); }
+        .btn-red { background: var(--btn-red); }
+        
+        .hidden { display: none !important; }
+        
+        /* Tabs */
+        .tabs { display: flex; margin-bottom: 15px; gap: 10px; }
+        .tab { flex: 1; padding: 10px; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; opacity: 0.7; }
+        .tab.active { opacity: 1; border-color: var(--accent); color: var(--accent); font-weight: bold; }
+
+        /* Device List */
+        .device-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: 10px; border-radius: 6px; margin-bottom: 5px; border: 1px solid var(--border); }
+        .badge-lan { background: #22c55e; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .badge-wan { background: #f59e0b; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+
+        /* Chat */
+        .chat-box { height: 300px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; word-break: break-word; font-size: 0.95rem; }
+        .msg.me { align-self: flex-end; background: var(--btn-blue); color: white; }
+        .msg.other { align-self: flex-start; background: var(--card); border: 1px solid var(--border); }
+        .msg-meta { font-size: 0.7rem; opacity: 0.7; margin-bottom: 2px; }
+
+        /* File List */
+        .file-list { max-height: 400px; overflow-y: auto; }
+        .file-item { padding: 10px; background: var(--card); margin-top: 5px; border-radius: 6px; display: flex; align-items: center; border-left: 3px solid var(--accent); font-size: 0.9rem; border: 1px solid var(--border); }
+        .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 10px; cursor: zoom-in; background: var(--bg); }
+        
+        .pin-display { font-size: 2.5rem; letter-spacing: 5px; font-family: monospace; text-align: center; background: var(--bg); padding: 15px; border-radius: 10px; margin: 15px 0; color: var(--accent); border: 2px dashed var(--border); }
+        
+        /* Settings */
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(22px); background: white; width: 18px; height: 18px; bottom: 3px; left: 3px; border-radius: 50%; position: absolute; content: ""; }
+    </style>
+</head>
+<body>
+
+    <div style="text-align:center;">
+        <h2 style="margin-bottom:5px;">🌍 Transfer V26 Multi</h2>
+    </div>
+
+    <!-- SETUP -->
+    <div id="screenSetup" class="card">
+        <h2>Identität</h2>
+        <input type="text" id="myName" placeholder="Gerätename" onkeyup="cleanInput(this)">
+        <div class="setting-row">
+            <span>🎨 Design</span>
+            <select id="themeSel" onchange="applyTheme()" style="width:100px; padding:5px;">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="matrix">Hacker</option>
+            </select>
+        </div>
+        <button class="btn-blue" onclick="startApp()">Starten</button>
+    </div>
+
+    <!-- AUTH/CONNECT (Hidden by default until needed) -->
+    <div id="screenConnect" class="card hidden">
+        <h3 style="margin-top:0;">Geräte hinzufügen</h3>
+        <input type="text" id="partnerName" placeholder="Partner Name" onkeyup="cleanInput(this)">
+        <div style="display:flex; gap:10px;">
+            <button class="btn-green" onclick="connectToPeer()">➕ Hinzufügen</button>
+            <button class="btn-blue" onclick="shareLink()">🔗 Link</button>
+        </div>
+        
+        <div id="authArea" class="hidden" style="margin-top:15px; background:var(--bg); padding:10px; border-radius:8px;">
+            <div id="authReceiver" class="hidden">
+                <p style="text-align:center; margin:0;">PIN am Partner eingeben:</p>
+                <div class="pin-display" style="font-size:1.5rem; padding:10px;"><span id="pinDisplayVal">----</span></div>
+            </div>
+            <div id="authSender" class="hidden">
+                <input type="tel" id="inputPin" placeholder="PIN eingeben" style="font-size:1.5rem; letter-spacing:5px; text-align:center;">
+                <button class="btn-green" onclick="submitPin()">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP AREA -->
+    <div id="screenMain" class="hidden">
+        
+        <!-- DEVICE LIST -->
+        <div class="card" style="padding:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <small>Verbundene Geräte:</small>
+                <small style="color:var(--accent); cursor:pointer;" onclick="document.getElementById('screenConnect').classList.remove('hidden')">➕ Neu</small>
+            </div>
+            <div id="deviceList" style="margin-top:5px;"></div>
+            <small id="netStatus" style="display:block; margin-top:8px; opacity:0.8;"></small>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="files" onclick="switchTab('files', event)">📂 Dateien</div>
+            <div class="tab" data-tab="chat" onclick="switchTab('chat', event)">💬 Chat</div>
+            <div class="tab" data-tab="settings" onclick="switchTab('settings', event)">⚙️ Optionen</div>
+        </div>
+
+        <!-- FILE TAB -->
+        <div id="tab-files">
+            <div class="card">
+                <div style="text-align:center; padding:20px; border:2px dashed var(--border); border-radius:10px; cursor:pointer;" onclick="document.getElementById('files').click()">
+                    <span style="font-size:1.5rem;">📂</span> <strong>Dateien senden</strong><br>
+                    <small>an ALLE Geräte</small>
+                </div>
+                <input type="file" id="files" multiple style="display:none;" onchange="startBulkUpload()">
+                
+                <div id="bulkArea" class="hidden" style="margin-top:10px;">
+                    <div style="font-size:0.8rem;" id="currentFileName">Sende...</div>
+                    <div style="background:var(--border); height:6px; border-radius:3px; margin-top:5px; overflow:hidden;">
+                        <div id="pBar" style="background:var(--btn-green); height:100%; width:0%;"></div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-blue hidden" id="btnZip" onclick="downloadAllZip()" style="background:#f59e0b; color:black; margin-bottom:10px;">📦 Alles als ZIP</button>
+            <div id="fileList" class="file-list"></div>
+        </div>
+
+        <!-- CHAT TAB -->
+        <div id="tab-chat" class="hidden">
+            <div style="text-align:center; font-size:0.7rem; opacity:0.6; margin-bottom:5px;">
+                👻 Ghost-Mode: Nachrichten verschwinden beim Trennen.
+            </div>
+            <div class="chat-box" id="chatBox"></div>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="chatInput" placeholder="Nachricht an alle..." style="margin:0;">
+                <button class="btn-blue" onclick="sendChat()" style="width:auto; margin:0;">➤</button>
+            </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div id="tab-settings" class="hidden">
+            <div class="card">
+                <h3>Sicherheit & Netz</h3>
+                <div class="setting-row">
+                    <span>📉 Kompression</span>
+                    <select id="compressMode" style="width:100px;" onchange="saveSettings()">
+                        <option value="smart">Smart</option>
+                        <option value="off">Aus</option>
+                        <option value="always">Immer</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <span>🌐 Netzmodus</span>
+                    <select id="netMode" style="width:120px;" onchange="saveSettings()">
+                        <option value="auto">Auto</option>
+                        <option value="internet">Internet</option>
+                        <option value="lan">Nur LAN</option>
+                    </select>
+                </div>
+                <div style="font-size:0.75rem; opacity:0.75; margin:8px 0 10px;">
+                    Für Verbindungen über unterschiedliche Netze ist ein TURN-Server nötig.
+                </div>
+                <input type="text" id="turnUrl" placeholder="TURN URL (z.B. turn:turn.example.com:3478)" onchange="saveSettings()">
+                <input type="text" id="turnUser" placeholder="TURN Benutzer (optional)" onchange="saveSettings()">
+                <input type="password" id="turnPass" placeholder="TURN Passwort (optional)" onchange="saveSettings()">
+                <div class="setting-row">
+                    <span>🔊 Sound</span>
+                    <label class="switch"><input type="checkbox" id="optSound" checked onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>🛡️ Integrität</span>
+                    <label class="switch"><input type="checkbox" id="optIntegrity" checked onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>🔥 Burn-on-Read</span>
+                    <label class="switch"><input type="checkbox" id="optBurn" onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-row">
+                    <span>👻 Stealth</span>
+                    <label class="switch"><input type="checkbox" id="optStealth" onchange="saveSettings()"><span class="slider"></span></label>
+                </div>
+                
+                <hr style="border-color:var(--border)">
+                
+                <button class="btn-red" onclick="rotateSecurity()">🔒 Neuer Schlüssel (Reset)</button>
+                <p style="font-size:0.75rem; color:var(--text); opacity:0.7; margin-top:5px;">
+                    Trennt ALLE Verbindungen und löscht alle lokalen Schlüssel. Chat-Verlauf wird bei allen gelöscht.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX -->
+    <div id="lightbox" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:1000; display:flex; align-items:center; justify-content:center; flex-direction:column;" onclick="this.classList.add('hidden'); document.getElementById('lbVid').pause();">
+        <img id="lbImg" style="max-width:95%; max-height:80%;" class="hidden">
+        <video id="lbVid" style="max-width:95%; max-height:80%;" class="hidden" playsinline controls></video>
+    </div>
+
+    <script>
+        const PREFIX = 'sft-v26-multi-';
+        const SETTINGS_KEY = 'sft_v26';
+        const CHUNK_SIZE = 128 * 1024;
+        const BUFFER_HIGH_WATERMARK = 4 * 1024 * 1024;
+        const BUFFER_LOW_WATERMARK = 1 * 1024 * 1024;
+
+        let peer = null;
+        let connections = {};
+        let incoming = {};
+        let receivedFiles = [];
+        let pendingAuthPeer = null;
+        let audioCtx = null;
+
+        function applyTheme() {
+            document.documentElement.setAttribute('data-theme', document.getElementById('themeSel').value);
+            saveSettings();
+        }
+
+        function saveSettings() {
+            const cfg = {
+                theme: document.getElementById('themeSel').value,
+                compress: document.getElementById('compressMode').value,
+                netMode: document.getElementById('netMode').value,
+                turnUrl: document.getElementById('turnUrl').value.trim(),
+                turnUser: document.getElementById('turnUser').value.trim(),
+                turnPass: document.getElementById('turnPass').value,
+                sound: document.getElementById('optSound').checked,
+                integrity: document.getElementById('optIntegrity').checked,
+                burn: document.getElementById('optBurn').checked,
+                stealth: document.getElementById('optStealth').checked,
+                name: document.getElementById('myName').value
+            };
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(cfg));
+        }
+
+        function loadSettings() {
+            const raw = localStorage.getItem(SETTINGS_KEY);
+            if (raw) {
+                try {
+                    const cfg = JSON.parse(raw);
+                    if (cfg.theme) {
+                        document.getElementById('themeSel').value = cfg.theme;
+                        applyTheme();
+                    }
+                    if (cfg.name) document.getElementById('myName').value = cfg.name;
+                    document.getElementById('compressMode').value = cfg.compress || 'smart';
+                    document.getElementById('netMode').value = cfg.netMode || 'auto';
+                    document.getElementById('turnUrl').value = cfg.turnUrl || '';
+                    document.getElementById('turnUser').value = cfg.turnUser || '';
+                    document.getElementById('turnPass').value = cfg.turnPass || '';
+                    document.getElementById('optSound').checked = cfg.sound !== false;
+                    document.getElementById('optIntegrity').checked = cfg.integrity !== false;
+                    document.getElementById('optBurn').checked = cfg.burn || false;
+                    document.getElementById('optStealth').checked = cfg.stealth || false;
+                } catch (e) {
+                    console.error('Settings konnten nicht geladen werden.', e);
+                }
+            }
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('connect')) {
+                document.getElementById('partnerName').value = urlParams.get('connect');
+            }
+        }
+        window.addEventListener('load', loadSettings);
+
+        function setNetStatus(message, isError) {
+            const el = document.getElementById('netStatus');
+            if (!el) return;
+            el.innerText = message || '';
+            el.style.color = isError ? '#f87171' : 'var(--accent)';
+        }
+
+        function playSound() {
+            if (!document.getElementById('optSound').checked) return;
+            if (!audioCtx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!Ctx) return;
+                audioCtx = new Ctx();
+            }
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            o.frequency.value = 800;
+            g.gain.value = 0.08;
+            o.start();
+            o.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function cleanInput(el) {
+            el.value = el.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            saveSettings();
+        }
+
+        function switchTab(tabName, evt) {
+            document.querySelectorAll('[id^="tab-"]').forEach((el) => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            document.querySelectorAll('.tab').forEach((el) => el.classList.remove('active'));
+
+            const tabEl = (evt && evt.currentTarget) || document.querySelector(`.tab[data-tab="${tabName}"]`);
+            if (tabEl) tabEl.classList.add('active');
+        }
+
+        function randomId(length) {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            const bytes = crypto.getRandomValues(new Uint8Array(length));
+            let out = '';
+            for (let i = 0; i < length; i++) {
+                out += chars[bytes[i] % chars.length];
+            }
+            return out;
+        }
+
+        function generatePin() {
+            return String(100000 + Math.floor(Math.random() * 900000));
+        }
+
+        function displayPeerId(peerId) {
+            return peerId.replace(PREFIX, '');
+        }
+
+        function transferKey(peerId, fileId) {
+            return peerId + '::' + fileId;
+        }
+
+        function normalizeBytes(payload) {
+            if (payload instanceof ArrayBuffer) return new Uint8Array(payload);
+            if (ArrayBuffer.isView(payload)) return new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
+            if (payload && Array.isArray(payload.data)) return new Uint8Array(payload.data);
+            return null;
+        }
+
+        function buildIceServers() {
+            const mode = document.getElementById('netMode').value || 'auto';
+            const iceServers = [];
+            if (mode !== 'lan') {
+                iceServers.push({ urls: 'stun:stun.l.google.com:19302' });
+                iceServers.push({ urls: 'stun:global.stun.twilio.com:3478' });
+            } else {
+                iceServers.push({ urls: 'stun:stun.l.google.com:19302' });
+            }
+
+            const turnUrl = document.getElementById('turnUrl').value.trim();
+            const turnUser = document.getElementById('turnUser').value.trim();
+            const turnPass = document.getElementById('turnPass').value;
+            if (turnUrl) {
+                const turnConfig = { urls: turnUrl };
+                if (turnUser) turnConfig.username = turnUser;
+                if (turnPass) turnConfig.credential = turnPass;
+                iceServers.push(turnConfig);
+            }
+            return iceServers;
+        }
+
+        async function derivePinKey(pin, salt) {
+            const enc = new TextEncoder();
+            const mat = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: enc.encode(salt), iterations: 120000, hash: 'SHA-256' },
+                mat,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function generateSuperKey() {
+            return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+        }
+
+        function ensureState(conn) {
+            if (!connections[conn.peer]) {
+                connections[conn.peer] = {
+                    conn: conn,
+                    key: null,
+                    salt: randomId(16),
+                    pSalt: null,
+                    authenticated: false,
+                    myPin: generatePin(),
+                    isWan: null,
+                    lastRtt: null
+                };
+            } else {
+                connections[conn.peer].conn = conn;
+            }
+            return connections[conn.peer];
+        }
+
+        function dropIncomingForPeer(peerId) {
+            Object.keys(incoming).forEach((k) => {
+                if (k.startsWith(peerId + '::')) delete incoming[k];
+            });
+        }
+
+        function startApp() {
+            const name = document.getElementById('myName').value;
+            if (name.length < 2) return alert('Name zu kurz');
+            if (peer && !peer.destroyed) return alert('App läuft bereits');
+
+            saveSettings();
+            setNetStatus('Verbinde Signalisierung ...');
+
+            peer = new Peer(PREFIX + name, {
+                debug: 1,
+                config: { iceServers: buildIceServers() }
+            });
+
+            peer.on('open', (id) => {
+                document.getElementById('screenSetup').classList.add('hidden');
+                document.getElementById('screenMain').classList.remove('hidden');
+                document.getElementById('screenConnect').classList.remove('hidden');
+                setNetStatus('Bereit als ' + displayPeerId(id));
+
+                if (document.getElementById('netMode').value === 'internet' && !document.getElementById('turnUrl').value.trim()) {
+                    setNetStatus('Internet-Modus aktiv: TURN fehlt (Verbindungen koennen fehlschlagen).', true);
+                }
+            });
+
+            peer.on('connection', handleIncomingConnection);
+
+            peer.on('disconnected', () => {
+                setNetStatus('Signalisierung getrennt, reconnect ...', true);
+                try { peer.reconnect(); } catch (e) { console.error(e); }
+            });
+
+            peer.on('error', (err) => {
+                console.error(err);
+                setNetStatus('Peer Fehler: ' + (err.type || err.message || 'unbekannt'), true);
+            });
+        }
+
+        function handleIncomingConnection(conn) {
+            setupConnectionEvents(conn, false);
+        }
+
+        function connectToPeer() {
+            if (!peer || peer.destroyed) return alert('Bitte zuerst starten.');
+            const p = document.getElementById('partnerName').value.trim();
+            if (!p) return;
+            const target = PREFIX + p;
+            if (target === peer.id) return alert('Selbstverbindung nicht erlaubt.');
+            const conn = peer.connect(target, { reliable: true });
+            setupConnectionEvents(conn, true);
+            setNetStatus('Verbinde mit ' + p + ' ...');
+        }
+
+        function setupConnectionEvents(conn, outgoing) {
+            if (connections[conn.peer] && connections[conn.peer].conn && connections[conn.peer].conn !== conn) {
+                try { connections[conn.peer].conn.close(); } catch (e) { console.error(e); }
+            }
+            ensureState(conn);
+
+            conn.on('open', () => {
+                const state = ensureState(conn);
+                state.key = null;
+                state.authenticated = false;
+                state.pSalt = null;
+                state.salt = randomId(16);
+                state.myPin = generatePin();
+                conn.send({ type: 'HELLO', salt: state.salt });
+
+                const pingStart = Date.now();
+                conn.send({ type: 'PING', time: pingStart });
+
+                updateDeviceList();
+                setNetStatus(
+                    outgoing ?
+                        ('Verbunden mit ' + displayPeerId(conn.peer) + '. Authentifizieren starten.') :
+                        (displayPeerId(conn.peer) + ' hat verbunden. Authentifizieren starten.')
+                );
+            });
+
+            conn.on('data', (d) => { handleData(conn, d).catch((e) => console.error(e)); });
+
+            conn.on('close', () => {
+                ghostCleanup(conn.peer);
+                dropIncomingForPeer(conn.peer);
+                delete connections[conn.peer];
+                if (pendingAuthPeer === conn.peer) pendingAuthPeer = null;
+                updateDeviceList();
+                setNetStatus(displayPeerId(conn.peer) + ' getrennt.');
+            });
+
+            conn.on('error', (err) => {
+                console.error(err);
+                delete connections[conn.peer];
+                updateDeviceList();
+                setNetStatus('Verbindungsfehler mit ' + displayPeerId(conn.peer), true);
+            });
+        }
+
+        function ghostCleanup(peerId) {
+            const msgs = document.querySelectorAll(`.msg[data-sender="${peerId}"]`);
+            msgs.forEach((m) => m.remove());
+        }
+
+        async function handleData(conn, d) {
+            const peerId = conn.peer;
+            const state = connections[peerId];
+            if (!state || !d || !d.type) return;
+
+            if (d.type === 'PING') {
+                conn.send({ type: 'PONG', time: d.time });
+                return;
+            }
+
+            if (d.type === 'PONG') {
+                const rtt = Date.now() - d.time;
+                state.lastRtt = rtt;
+                state.isWan = rtt > 60;
+                updateDeviceList();
+                return;
+            }
+
+            if (d.type === 'HELLO') {
+                state.pSalt = d.salt;
+                state.myPin = generatePin();
+                if (pendingAuthPeer === peerId) {
+                    document.getElementById('pinDisplayVal').innerText = state.myPin;
+                }
+                updateDeviceList();
+                return;
+            }
+
+            if (d.type === 'KEY_OFFER') {
+                const iv = normalizeBytes(d.iv);
+                if (!iv) return;
+                try {
+                    const pinKey = await derivePinKey(state.myPin, state.salt);
+                    const rawSuperKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, pinKey, d.keyData);
+                    state.key = await crypto.subtle.importKey('raw', rawSuperKey, 'AES-GCM', false, ['encrypt', 'decrypt']);
+                    state.authenticated = true;
+                    conn.send({ type: 'KEY_ACK' });
+
+                    document.getElementById('authArea').classList.add('hidden');
+                    document.getElementById('authReceiver').classList.add('hidden');
+                    updateDeviceList();
+                    setNetStatus(displayPeerId(peerId) + ' authentifiziert.');
+                } catch (e) {
+                    console.error(e);
+                    conn.send({ type: 'KEY_FAIL' });
+                }
+                return;
+            }
+
+            if (d.type === 'KEY_ACK') {
+                state.authenticated = true;
+                document.getElementById('authArea').classList.add('hidden');
+                document.getElementById('authSender').classList.add('hidden');
+                updateDeviceList();
+                setNetStatus(displayPeerId(peerId) + ' authentifiziert.');
+                return;
+            }
+
+            if (d.type === 'KEY_FAIL') {
+                alert('PIN falsch.');
+                return;
+            }
+
+            if (!state.key || !state.authenticated) return;
+
+            if (d.type === 'CHAT') {
+                const iv = normalizeBytes(d.iv);
+                if (!iv) return;
+                const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, state.key, d.data);
+                const txt = new TextDecoder().decode(dec);
+                addChatMsg(txt, false, peerId);
+                playSound();
+                return;
+            }
+
+            if (d.type === 'FILE_START') {
+                const k = transferKey(peerId, d.id);
+                incoming[k] = {
+                    id: d.id,
+                    senderId: peerId,
+                    name: d.name,
+                    mime: d.mime || 'application/octet-stream',
+                    totalChunks: d.totalChunks || 1,
+                    totalSize: d.size || 0,
+                    receivedChunks: 0,
+                    receivedBytes: 0,
+                    chunks: new Array(d.totalChunks || 1),
+                    burn: !!d.burn
+                };
+                document.getElementById('bulkArea').classList.remove('hidden');
+                document.getElementById('currentFileName').innerText = 'Empfange: ' + d.name;
+                document.getElementById('pBar').style.width = '0%';
+                return;
+            }
+
+            if (d.type === 'FILE_CHUNK') {
+                const k = transferKey(peerId, d.id);
+                const transfer = incoming[k];
+                if (!transfer) return;
+                if (typeof d.idx !== 'number') return;
+                if (transfer.chunks[d.idx]) return;
+
+                const packed = normalizeBytes(d.data);
+                if (!packed || packed.byteLength < 13) return;
+
+                const iv = packed.slice(0, 12);
+                const encPayload = packed.slice(12);
+                const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, state.key, encPayload);
+                const plainChunk = new Uint8Array(dec);
+
+                transfer.chunks[d.idx] = plainChunk;
+                transfer.receivedChunks += 1;
+                transfer.receivedBytes += plainChunk.byteLength;
+
+                const pct = Math.round((transfer.receivedChunks / transfer.totalChunks) * 100);
+                document.getElementById('pBar').style.width = pct + '%';
+
+                if (transfer.receivedChunks >= transfer.totalChunks) {
+                    await finalizeDownload(k);
+                    delete incoming[k];
+                }
+            }
+        }
+
+        function updateDeviceList() {
+            const list = document.getElementById('deviceList');
+            list.innerHTML = '';
+            const peerIds = Object.keys(connections);
+
+            if (peerIds.length === 0) {
+                const empty = document.createElement('small');
+                empty.style.opacity = '0.7';
+                empty.innerText = 'Noch keine Verbindungen.';
+                list.appendChild(empty);
+                return;
+            }
+
+            peerIds.forEach((pid) => {
+                const state = connections[pid];
+                const row = document.createElement('div');
+                row.className = 'device-row';
+
+                const left = document.createElement('div');
+                const name = document.createElement('strong');
+                name.innerText = displayPeerId(pid);
+                left.appendChild(name);
+                left.appendChild(document.createElement('br'));
+
+                const status = document.createElement('span');
+                if (state.authenticated) {
+                    const net = state.isWan == null ? '⏳ TEST' : (state.isWan ? '🌍 WEB' : '🏠 LAN');
+                    const latency = state.lastRtt == null ? '' : (' (' + state.lastRtt + ' ms)');
+                    const netClass = state.isWan == null ? 'badge-wan' : (state.isWan ? 'badge-wan' : 'badge-lan');
+                    status.innerHTML = '<span style="color:#22c55e; font-size:0.8rem;">Verbunden</span> ' +
+                        '<span class="' + netClass + '">' + net + '</span>' +
+                        '<span style="font-size:0.75rem; opacity:0.7;">' + latency + '</span>';
+                } else {
+                    status.innerHTML = '<span style="color:#fbbf24; font-size:0.8rem;">🔒 Auth noetig</span>';
+                }
+                left.appendChild(status);
+
+                row.appendChild(left);
+
+                if (!state.authenticated) {
+                    const btnWrap = document.createElement('div');
+                    btnWrap.style.display = 'flex';
+                    btnWrap.style.gap = '6px';
+
+                    const btnEnter = document.createElement('button');
+                    btnEnter.className = 'btn-green';
+                    btnEnter.style.padding = '5px 10px';
+                    btnEnter.style.fontSize = '0.8rem';
+                    btnEnter.innerText = '🔑 Eingeben';
+                    btnEnter.onclick = () => startAuth(pid);
+
+                    const btnShow = document.createElement('button');
+                    btnShow.className = 'btn-blue';
+                    btnShow.style.padding = '5px 10px';
+                    btnShow.style.fontSize = '0.8rem';
+                    btnShow.innerText = '🔢 Zeigen';
+                    btnShow.onclick = () => showMyPin(pid);
+
+                    btnWrap.appendChild(btnEnter);
+                    btnWrap.appendChild(btnShow);
+                    row.appendChild(btnWrap);
+                }
+
+                list.appendChild(row);
+            });
+        }
+
+        function startAuth(pid) {
+            pendingAuthPeer = pid;
+            document.getElementById('inputPin').value = '';
+            document.getElementById('authArea').classList.remove('hidden');
+            document.getElementById('authSender').classList.remove('hidden');
+            document.getElementById('authReceiver').classList.add('hidden');
+        }
+
+        function showMyPin(pid) {
+            pendingAuthPeer = pid;
+            const state = connections[pid];
+            if (!state) return;
+            if (!state.myPin) state.myPin = generatePin();
+            document.getElementById('pinDisplayVal').innerText = state.myPin;
+            document.getElementById('authArea').classList.remove('hidden');
+            document.getElementById('authReceiver').classList.remove('hidden');
+            document.getElementById('authSender').classList.add('hidden');
+        }
+
+        async function submitPin() {
+            if (!pendingAuthPeer) return;
+            const entered = document.getElementById('inputPin').value.replace(/\D/g, '');
+            if (entered.length !== 6) return alert('Bitte 6-stellige PIN eingeben.');
+
+            const state = connections[pendingAuthPeer];
+            if (!state || !state.pSalt) return alert('Handshake noch nicht fertig. Bitte kurz warten.');
+
+            const newKey = await generateSuperKey();
+            state.key = newKey;
+            state.authenticated = false;
+
+            const pinKey = await derivePinKey(entered, state.pSalt);
+            const rawKey = await crypto.subtle.exportKey('raw', newKey);
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encryptedKey = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, pinKey, rawKey);
+
+            state.conn.send({ type: 'KEY_OFFER', iv: iv, keyData: encryptedKey });
+        }
+
+        function rotateSecurity() {
+            if (!confirm('Wirklich alle Verbindungen und Schluessel zuruecksetzen?')) return;
+            Object.values(connections).forEach((c) => c.conn.close());
+            connections = {};
+            incoming = {};
+            pendingAuthPeer = null;
+            receivedFiles = [];
+            document.getElementById('chatBox').innerHTML = '';
+            document.getElementById('fileList').innerHTML = '';
+            document.getElementById('btnZip').classList.add('hidden');
+            document.getElementById('bulkArea').classList.add('hidden');
+            updateDeviceList();
+            setNetStatus('Schluessel zurueckgesetzt. Bitte neu authentifizieren.');
+        }
+
+        async function sendChat() {
+            const txt = document.getElementById('chatInput').value.trim();
+            if (!txt) return;
+
+            const enc = new TextEncoder().encode(txt);
+            for (const pid in connections) {
+                const state = connections[pid];
+                if (state.authenticated && state.key && state.conn.open) {
+                    const iv = crypto.getRandomValues(new Uint8Array(12));
+                    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, state.key, enc);
+                    state.conn.send({ type: 'CHAT', iv: iv, data: encrypted });
+                }
+            }
+            addChatMsg(txt, true, 'me');
+            document.getElementById('chatInput').value = '';
+        }
+
+        function addChatMsg(txt, me, senderId) {
+            const d = document.createElement('div');
+            d.className = 'msg ' + (me ? 'me' : 'other');
+            d.setAttribute('data-sender', me ? 'me' : senderId);
+
+            const meta = document.createElement('div');
+            meta.className = 'msg-meta';
+            meta.innerText = me ? 'Ich' : displayPeerId(senderId);
+
+            d.appendChild(meta);
+            d.appendChild(document.createTextNode(txt));
+
+            const box = document.getElementById('chatBox');
+            box.appendChild(d);
+            box.scrollTop = box.scrollHeight;
+            if (!me) switchTab('chat');
+        }
+
+        async function waitForBufferedAmountLow(conn) {
+            if (!conn || !conn.open || !conn.dataChannel) return;
+            if (conn.dataChannel.bufferedAmount < BUFFER_HIGH_WATERMARK) return;
+
+            await new Promise((resolve) => {
+                const check = () => {
+                    if (!conn.open || !conn.dataChannel) return resolve();
+                    if (conn.dataChannel.bufferedAmount <= BUFFER_LOW_WATERMARK) return resolve();
+                    setTimeout(check, 20);
+                };
+                check();
+            });
+        }
+
+        async function sendFileToPeer(file, peerId, state) {
+            const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+            const fileId = randomId(10);
+            state.conn.send({
+                type: 'FILE_START',
+                id: fileId,
+                name: file.name,
+                size: file.size,
+                mime: file.type || 'application/octet-stream',
+                totalChunks: totalChunks,
+                burn: document.getElementById('optBurn').checked
+            });
+
+            for (let idx = 0; idx < totalChunks; idx++) {
+                if (!state.conn.open) throw new Error('Verbindung geschlossen: ' + displayPeerId(peerId));
+
+                const start = idx * CHUNK_SIZE;
+                const end = Math.min(file.size, start + CHUNK_SIZE);
+                const plain = await file.slice(start, end).arrayBuffer();
+
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, state.key, plain);
+                const packet = new Uint8Array(12 + encrypted.byteLength);
+                packet.set(iv, 0);
+                packet.set(new Uint8Array(encrypted), 12);
+
+                state.conn.send({ type: 'FILE_CHUNK', id: fileId, idx: idx, data: packet.buffer });
+                document.getElementById('pBar').style.width = Math.round(((idx + 1) / totalChunks) * 100) + '%';
+                await waitForBufferedAmountLow(state.conn);
+            }
+        }
+
+        async function startBulkUpload() {
+            const files = Array.from(document.getElementById('files').files || []);
+            if (files.length === 0) return;
+
+            const activePeers = Object.entries(connections).filter((entry) => {
+                const state = entry[1];
+                return state.authenticated && state.key && state.conn && state.conn.open;
+            });
+            if (activePeers.length === 0) {
+                alert('Keine authentifizierten Geraete verbunden.');
+                return;
+            }
+
+            document.getElementById('bulkArea').classList.remove('hidden');
+            try {
+                for (const file of files) {
+                    document.getElementById('currentFileName').innerText = 'Sende: ' + file.name;
+                    for (const entry of activePeers) {
+                        const pid = entry[0];
+                        const state = connections[pid];
+                        if (!state || !state.authenticated || !state.key || !state.conn.open) continue;
+                        await sendFileToPeer(file, pid, state);
+                    }
+                }
+
+                document.getElementById('currentFileName').innerText = 'Fertig!';
+                document.getElementById('pBar').style.width = '100%';
+            } catch (e) {
+                console.error(e);
+                document.getElementById('currentFileName').innerText = 'Fehler beim Senden';
+                setNetStatus('Dateiuebertragung fehlgeschlagen: ' + e.message, true);
+            } finally {
+                setTimeout(() => {
+                    document.getElementById('bulkArea').classList.add('hidden');
+                    document.getElementById('pBar').style.width = '0%';
+                }, 1400);
+                document.getElementById('files').value = '';
+            }
+        }
+
+        async function finalizeDownload(inKey) {
+            const fileState = incoming[inKey];
+            if (!fileState) return;
+
+            const missing = fileState.chunks.some((c) => !c);
+            if (missing) throw new Error('Transfer unvollstaendig: ' + fileState.name);
+
+            const blob = new Blob(fileState.chunks, { type: fileState.mime });
+            const url = URL.createObjectURL(blob);
+            receivedFiles.push({ name: fileState.name, blob: blob });
+            document.getElementById('btnZip').classList.remove('hidden');
+            playSound();
+
+            const div = document.createElement('div');
+            div.className = 'file-item';
+
+            const label = document.createElement('div');
+            label.innerText = fileState.name + ' (' + displayPeerId(fileState.senderId) + ')';
+            const dl = document.createElement('a');
+            dl.href = url;
+            dl.download = fileState.name;
+            dl.innerText = '⬇️';
+            dl.onclick = () => {
+                if (fileState.burn) {
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                        div.remove();
+                    }, 200);
+                }
+            };
+
+            div.appendChild(label);
+            div.appendChild(dl);
+            document.getElementById('fileList').prepend(div);
+            document.getElementById('currentFileName').innerText = 'Empfang fertig: ' + fileState.name;
+        }
+
+        async function downloadAllZip() {
+            const zip = new JSZip();
+            receivedFiles.forEach((f) => zip.file(f.name, f.blob));
+            const content = await zip.generateAsync({ type: 'blob' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = 'Files.zip';
+            a.click();
+        }
+
+        function shareLink() {
+            const name = document.getElementById('myName').value;
+            if (!name) return alert('Bitte zuerst Geraetename eingeben.');
+
+            const base = (window.location.origin === 'null' ? window.location.href.split('?')[0] : window.location.origin + window.location.pathname);
+            const link = base + '?connect=' + encodeURIComponent(name);
+            navigator.clipboard.writeText(link).then(
+                () => alert('Link kopiert!'),
+                () => window.prompt('Link kopieren:', link)
+            );
+        }
+    </script>
+</body>
+</html>
